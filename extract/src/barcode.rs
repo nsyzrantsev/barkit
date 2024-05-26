@@ -25,15 +25,23 @@ impl Barcode {
         }
     }
 
-    pub fn cut_from_read(barcode_type: String, matched_pattern: Captures, read: &RefRecord) -> Result<(Vec<u8>, Vec<u8>), errors::Error> {
+    pub fn cut_from_read_seq(barcode_type: String, matched_pattern: Captures, read: &RefRecord) -> Result<(String, String, String), errors::Error> {
         let start: usize = matched_pattern.name(&barcode_type).unwrap().start();
         let end = matched_pattern.name(&barcode_type).unwrap().end();
         let read_seq = read.seq();
         let read_qual = read.qual();
-        let new_read_seq = [&read_seq[..start], &read_seq[end..]].concat();
-        let new_read_qual = [&read_qual[..start], &read_qual[end..]].concat();
-        Ok((new_read_seq, new_read_qual))
+        let new_read_seq = String::from_utf8([&read_seq[..start], &read_seq[end..]].concat()).unwrap();
+        let new_read_qual = String::from_utf8([&read_qual[..start], &read_qual[end..]].concat()).unwrap();
+        let new_read_header = Self::move_to_the_header(barcode_type, read, start, end);
+        Ok((new_read_seq, new_read_qual, new_read_header))
     }
 
-    fn move_to_the_header() {}
+    fn move_to_the_header(barcode_type: String, read: &RefRecord, start: usize, end: usize) -> String {
+        let read_header = std::str::from_utf8(read.head()).unwrap();
+        let read_seq = read.seq();
+        let read_qual = read.qual();
+        let barcode_seq = std::str::from_utf8(&read_seq[start..end]).unwrap();
+        let barcode_qual = std::str::from_utf8(&read_qual[start..end]).unwrap();
+        format!("{} {}:{}:{}", read_header, barcode_type, barcode_seq, barcode_qual)
+    }
 }
