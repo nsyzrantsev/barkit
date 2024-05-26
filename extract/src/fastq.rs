@@ -1,7 +1,11 @@
 use flate2::read::GzDecoder;
 use std::path::Path;
 use std::fs::File;
-use std::io::{self, Read, BufRead, BufReader};
+use std::io::{Read, BufRead, BufReader};
+use regex::{self, Regex};
+
+use crate::errors;
+
 
 const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
 
@@ -21,10 +25,11 @@ pub fn read_fastq(fastq_path: &str) -> Box<dyn BufRead> {
     }
 }
 
+pub fn parse_barcode<'a>(pattern: &'a str, read: &'a str) -> Result<regex::Captures<'a>, errors::Error> {
+    let re = Regex::new(pattern).map_err(|_| errors::Error::InvalidPattern(pattern.to_string()))?;
 
-pub fn print_fastq(mut reader: Box<dyn BufRead>) -> io::Result<()> {
-    let mut buffer = String::new();
-    reader.read_to_string(&mut buffer)?;
-    println!("{}", buffer);
-    Ok(())
+    match re.captures(read) {
+        Some(value) => Ok(value),
+        None => Err(errors::Error::PatternNotMatched(pattern.to_string(), read.to_string()))
+    }
 }

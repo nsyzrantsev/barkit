@@ -20,5 +20,9 @@ pub enum Commands {
         /// (gzipped) read2 file
         #[arg(short='2', long, requires = "read1")]
         read2: Option<String>,
+
+        /// barcode pattern of read1
+        #[arg(short='p', long)]
+        pattern: String,
     },
 }

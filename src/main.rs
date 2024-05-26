@@ -7,9 +7,10 @@ fn main() {
     match &args.command {
         barkit::Commands::Extract {
             read1,
-            read2
+            read2,
+            pattern
         } => {
-            extract::run(read1.to_string(), read2.clone());
+            extract::run(read1.to_string(), read2.clone(), pattern.clone());
         }
     }
 }
