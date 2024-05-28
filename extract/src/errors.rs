@@ -12,4 +12,8 @@ pub enum Error {
     UnimplementedError(),
     #[error("Invalid pattern: {}", _0)]
     InvalidPattern(String),
+    #[error("UTF-8 error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
 }
