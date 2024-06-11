@@ -1,7 +1,5 @@
 extern crate cxx;
 
-use cxx::UniquePtr;
-
 #[cxx::bridge(namespace = "fuzzy_matcher")]
 mod ffi {
     unsafe extern "C++" {
