@@ -9,10 +9,13 @@ fn main() {
     println!("cargo:include=RE-flex/include");
 
     cxx_build::bridge("src/lib.rs")
-        .file("src/bindings.cpp")
-        .flag_if_supported("-std=c++11")
+        .file("cxx/fuzzy_matcher.cpp")
+        .flag_if_supported("-std=c++14")
         .flag_if_supported("-IRE-flex/include")
-        .compile("fuzzymatcher");
+        .compile("fuzzy_matcher");
 
-    //  c++ -Wall -Wunused -Wextra -O2 -I. -I../include
+    println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=cxx/fuzzy_matcher.hpp");
+    println!("cargo:rerun-if-changed=cxx/fuzzy_matcher.cpp");
+    println!("cargo:rerun-if-changed=FuzzyMatcher/fuzzymatcher.h");
 }
