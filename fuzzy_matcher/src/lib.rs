@@ -3,7 +3,7 @@ extern crate cxx;
 #[cxx::bridge(namespace = "fuzzy_matcher")]
 mod ffi {
     unsafe extern "C++" {
-        include!("fuzzy_matcher/cxx/fuzzy_matcher.hpp");
+        include!("fuzzy_matcher/include/fuzzy_matcher.hpp");
 
         type FuzzyMatcher;
 

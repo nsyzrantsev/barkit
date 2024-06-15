@@ -23,14 +23,14 @@ fn main() {
     println!("cargo:rustc-link-lib=static=reflex");
 
     cxx_build::bridge("src/lib.rs")
-        .file("cxx/fuzzy_matcher.cpp")
+        .file("include/fuzzy_matcher.cpp")
         .include("RE-flex/include")
         .flag_if_supported("-std=c++14")
         .compile("fuzzy_matcher");
 
     println!("cargo:rerun-if-changed=src/lib.rs");
-    println!("cargo:rerun-if-changed=cxx/fuzzy_matcher.hpp");
-    println!("cargo:rerun-if-changed=cxx/fuzzy_matcher.cpp");
+    println!("cargo:rerun-if-changed=include/fuzzy_matcher.hpp");
+    println!("cargo:rerun-if-changed=include/fuzzy_matcher.cpp");
     println!("cargo:rerun-if-changed=RE-flex/include");
     println!("cargo:rerun-if-changed=RE-flex/src");
 }

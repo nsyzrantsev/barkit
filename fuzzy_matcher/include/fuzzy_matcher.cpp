@@ -1,4 +1,4 @@
-#include "fuzzy_matcher/cxx/fuzzy_matcher.hpp"
+#include "fuzzy_matcher/include/fuzzy_matcher.hpp"
 
 namespace fuzzy_matcher {
     std::unique_ptr<std::string> create_regex(rust::Str pattern) {
@@ -11,7 +11,7 @@ namespace fuzzy_matcher {
     }
 
     bool matches(std::unique_ptr<FuzzyMatcher> matcher) {
-        return matcher->matches() > 0;
+        return matcher->matches();
     }
 
     uint8_t edits(std::unique_ptr<FuzzyMatcher> matcher) {
