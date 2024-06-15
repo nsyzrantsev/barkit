@@ -8,11 +8,9 @@
 
 namespace fuzzy_matcher {
     using ::reflex::FuzzyMatcher;
-    using ::reflex::Pattern;
-    using ::reflex::Matcher;
 
-    std::unique_ptr<Pattern> create_regex(rust::Str pattern);
-    std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(std::unique_ptr<Pattern> regex, int8_t max_errors, rust::Str input);
+    std::unique_ptr<std::string> create_regex(rust::Str pattern);
+    std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(std::unique_ptr<std::string> regex, int8_t max_errors, rust::Str input);
     bool matches(std::unique_ptr<FuzzyMatcher> matcher);
     uint8_t edits(std::unique_ptr<FuzzyMatcher> matcher);
     uint16_t distance(std::unique_ptr<FuzzyMatcher> matcher);

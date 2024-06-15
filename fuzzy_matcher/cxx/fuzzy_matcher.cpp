@@ -1,15 +1,13 @@
-#include "fuzzy_matcher.hpp"
+#include "fuzzy_matcher/cxx/fuzzy_matcher.hpp"
 
 namespace fuzzy_matcher {
-    std::unique_ptr<Pattern> create_regex(rust::Str pattern) {
+    std::unique_ptr<std::string> create_regex(rust::Str pattern) {
         std::string pattern_cpp(pattern.data(), pattern.size());
-        std::string regex(reflex::Matcher::convert(pattern_cpp, reflex::convert_flag::unicode));
-        return std::make_unique<reflex::Pattern>(regex, "mr");
+        return std::make_unique<std::string>(std::move(pattern_cpp));
     }
 
-    std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(std::unique_ptr<Pattern> regex, int8_t max_errors, rust::Str input) {
-        reflex::FuzzyMatcher matcher(std::move(*regex), max_errors | reflex::FuzzyMatcher::SUB, std::string(input.data(), input.size()));
-        return std::make_unique<FuzzyMatcher>(matcher);
+    std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(std::unique_ptr<std::string> regex, int8_t max_errors, rust::Str input) {
+        return std::make_unique<FuzzyMatcher>(std::move(*regex), max_errors, std::string(input.data(), input.size()));
     }
 
     bool matches(std::unique_ptr<FuzzyMatcher> matcher) {
