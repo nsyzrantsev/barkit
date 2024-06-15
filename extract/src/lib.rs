@@ -1,6 +1,4 @@
 mod fastq;
-mod bitvector;
-mod genasm;
 mod errors;
 mod barcode;
 
