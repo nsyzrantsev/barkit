@@ -8,8 +8,10 @@ mod ffi {
         type FuzzyMatcher;
 
         fn create_regex(pattern: &str) -> UniquePtr<CxxString>;
-        fn create_fuzzy_matcher(regex: &str, max_errors: i8, input: &str) -> UniquePtr<FuzzyMatcher>;
+        fn create_fuzzy_matcher(regex: UniquePtr<CxxString>, max_errors: i8, input: &str) -> UniquePtr<FuzzyMatcher>;
         fn matches(matcher: UniquePtr<FuzzyMatcher>) -> bool;
+        fn edits(matcher: UniquePtr<FuzzyMatcher>) -> u8;
+        fn distance(matcher: UniquePtr<FuzzyMatcher>) -> u16;
     }
 }
 
