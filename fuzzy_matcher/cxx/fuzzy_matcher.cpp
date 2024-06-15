@@ -9,7 +9,7 @@ namespace fuzzy_matcher {
         return std::make_unique<FuzzyMatcher>(std::string(regex.data(), regex.size()), max_errors, std::string(input.data(), input.size()));
     }
 
-    bool matches(FuzzyMatcher& matcher) {
-        return matcher.matches() > 0;
+    bool matches(std::unique_ptr<FuzzyMatcher> matcher) {
+        return (*matcher).matches() > 0;
     }
 }

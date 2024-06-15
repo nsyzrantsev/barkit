@@ -9,7 +9,7 @@ mod ffi {
 
         fn create_regex(pattern: &str) -> UniquePtr<CxxString>;
         fn create_fuzzy_matcher(regex: &str, max_errors: i8, input: &str) -> UniquePtr<FuzzyMatcher>;
-        fn matches(matcher: Pin<&mut FuzzyMatcher>) -> bool;
+        fn matches(matcher: UniquePtr<FuzzyMatcher>) -> bool;
     }
 }
 

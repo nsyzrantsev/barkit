@@ -1,4 +1,4 @@
-use fuzzy_matcher::{create_regex, create_fuzzy_matcher};
+use fuzzy_matcher::{create_regex, create_fuzzy_matcher, matches};
 use cxx::CxxString;
 
 fn main() {
@@ -9,5 +9,6 @@ fn main() {
     println!("{:?}", regex);
 
     let matcher = create_fuzzy_matcher(pattern, 5, input);
-    // println!("{:?}", matcher);
+
+    println!("{}", matches(matcher));
 }

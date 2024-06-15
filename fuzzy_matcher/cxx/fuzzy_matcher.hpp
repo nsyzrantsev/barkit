@@ -11,7 +11,7 @@ namespace fuzzy_matcher {
 
     std::unique_ptr<std::string> create_regex(rust::Str pattern);
     std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(rust::Str regex, int8_t max_errors, rust::Str input);
-    bool matches(FuzzyMatcher& matcher);
+    bool matches(std::unique_ptr<FuzzyMatcher> matcher);
 }
 
 #endif // FUZZY_MATCHER_HPP
