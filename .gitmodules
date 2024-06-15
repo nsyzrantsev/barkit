@@ -1,6 +1,3 @@
-[submodule "fuzzy_matcher/FuzzyMatcher"]
-	path = fuzzy_matcher/FuzzyMatcher
-	url = https://github.com/Genivia/FuzzyMatcher
 [submodule "fuzzy_matcher/RE-flex"]
 	path = fuzzy_matcher/RE-flex
 	url = https://github.com/Genivia/RE-flex

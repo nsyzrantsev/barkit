@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <string>
-#include <fuzzy_matcher/FuzzyMatcher/fuzzymatcher.h>
+#include <fuzzy_matcher/RE-flex/fuzzy/fuzzymatcher.h>
 #include "rust/cxx.h"
 
 namespace fuzzy_matcher {
