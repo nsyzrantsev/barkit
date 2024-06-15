@@ -10,7 +10,8 @@ namespace fuzzy_matcher {
     using ::reflex::FuzzyMatcher;
 
     std::unique_ptr<std::string> create_regex(rust::Str pattern);
-    std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(rust::Str regex, int8_t threshold, rust::Str input);
+    std::unique_ptr<FuzzyMatcher> create_fuzzy_matcher(rust::Str regex, int8_t max_errors, rust::Str input);
+    bool matches(FuzzyMatcher& matcher);
 }
 
 #endif // FUZZY_MATCHER_HPP
