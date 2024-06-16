@@ -2,11 +2,14 @@ use std::mem::size_of;
 
 use fancy_regex::Regex;
 
-const ERROR_PER_TEN_NUCLEOTIDES: usize = 1;
+const ERROR_PER_TEN_NUCLEOTIDES: usize = 2;
 const PATTERN_REGEX: &str = r"(?<!\[)\b[ATGCN]+\b(?!\])";
 
 
 pub fn generate_fuzzy_patterns(string: &str, error_num: usize) -> Vec<String> {
+    if string.len() == 1 {
+        return vec![string.to_string()];
+    }
     if string.is_empty() {
         return Vec::new();
     }
