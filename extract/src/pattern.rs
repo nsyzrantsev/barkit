@@ -1,4 +1,4 @@
-use regex_syntax::hir::{Hir, HirKind, Literal, Class};
+use regex_syntax::hir::{Hir, HirKind, Literal, Class, Look, Repetition, Capture};
 
 fn generate_patterns(literal: &[u8]) -> Vec<String> {
     if literal.len() < 10 {
@@ -53,26 +53,44 @@ pub fn update_hir_pattern(hir: &Hir) -> String {
     match hir.kind() {
         HirKind::Empty => String::new(),
         HirKind::Literal(Literal(bytes)) => {
-            let patterns = generate_patterns(&bytes as &[u8]);
+            let patterns = generate_patterns(bytes);
             patterns.join("|")
         },
         HirKind::Class(class) => class_to_string(class),
         HirKind::Concat(hirs) => {
-            let updated_patterns: Vec<String> = hirs.iter().map(|hir| update_hir_pattern(hir)).collect();
-            updated_patterns.join("")
+            let mut patterns = Vec::new();
+            for hir in hirs {
+                patterns.push(update_hir_pattern(hir));
+            }
+            patterns.join("")
         },
         HirKind::Alternation(hirs) => {
-            let updated_patterns: Vec<String> = hirs.iter().map(|hir| update_hir_pattern(hir)).collect();
-            updated_patterns.join("|")
+            let mut patterns = Vec::new();
+            for hir in hirs {
+                patterns.push(update_hir_pattern(hir));
+            }
+            patterns.join("|")
         },
         HirKind::Look(_) => String::new(),
-        HirKind::Repetition(hirs) => {
-            let sub_pattern = update_hir_pattern(&hirs.sub);
-            format!("({})*", sub_pattern)
+        HirKind::Repetition(repetition) => {
+            let sub_pattern = update_hir_pattern(&repetition.sub);
+            let quantifier = match repetition.max {
+                Some(max) if max == repetition.min => format!("{{{}}}", max),
+                Some(max) => format!("{{{},{}}}", repetition.min, max),
+                None => format!("{{{},{}}}", repetition.min, ""),
+            };
+            format!("{}{}", sub_pattern, quantifier)
         },
-        HirKind::Capture(hirs) => {
-            let sub_pattern = update_hir_pattern(&hirs.sub);
-            format!("(?P<{}>{})", hirs.name.as_deref().unwrap_or(""), sub_pattern)
+        HirKind::Capture(capture) => {
+            let sub_pattern = update_hir_pattern(&capture.sub);
+            format!("(?P<{}>{})", capture.name.as_ref().unwrap(), sub_pattern)
         },
     }
 }
+
+// fn main() {
+//     let pattern = "^[ATGCN]*T(?P<UMI>[ATGCN]{12})CTCCGCTTAAGGGACT";
+//     let hir_structure = regex_syntax::ParserBuilder::new().build().parse(pattern).unwrap();
+//     let result = update_hir_pattern(&hir_structure);
+//     println!("{}", result);
+// }
