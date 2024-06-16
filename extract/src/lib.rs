@@ -16,7 +16,15 @@ pub fn run(read1: String, read2: Option<String>, pattern: String) {
 
     let mut reader = Reader::new(fastq_buf);
 
-    let barcode = Barcode::new(&pattern).expect("REASON");
+    let hir = Parser::new().parse(&pattern).unwrap();
+
+    println!("{:?}", hir);
+    
+    let updated_pattern = pattern::update_hir_pattern(&hir);
+
+    println!("Final updated pattern: {:?}", updated_pattern);
+
+    let barcode = Barcode::new(&updated_pattern).expect("REASON");
 
     while let Some(record) = reader.next() {
         let record = record.expect("Error reading record");
@@ -24,10 +32,5 @@ pub fn run(read1: String, read2: Option<String>, pattern: String) {
         let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", caps, &record).unwrap();
         println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual);
     }
-
-    let hir = Parser::new().parse(r"^[ATGCN]*T(?P<UMI>[ATGCN]{12})CTCCGCTTAAGGGACT").unwrap();
-    
-    let updated_pattern = pattern::update_hir_pattern(&hir);
-    println!("Final updated pattern: {:?}", updated_pattern);
 
 }

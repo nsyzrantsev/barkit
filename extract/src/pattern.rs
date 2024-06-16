@@ -1,6 +1,9 @@
 use regex_syntax::hir::{Hir, HirKind, Literal, Class};
 
 fn generate_patterns(literal: &[u8]) -> Vec<String> {
+    if literal.len() < 10 {
+        return vec![String::from_utf8(literal.to_vec()).unwrap()];
+    }
     let mut patterns = Vec::new();
     for i in 0..literal.len() {
         let mut pattern = literal.to_vec();
@@ -50,8 +53,7 @@ pub fn update_hir_pattern(hir: &Hir) -> String {
     match hir.kind() {
         HirKind::Empty => String::new(),
         HirKind::Literal(Literal(bytes)) => {
-            let bytes_ref: &[u8] = &bytes;
-            let patterns = generate_patterns(bytes_ref);
+            let patterns = generate_patterns(&bytes as &[u8]);
             patterns.join("|")
         },
         HirKind::Class(class) => class_to_string(class),
