@@ -21,25 +21,13 @@ fn generate_patterns(literal: &[u8]) -> Vec<String> {
 fn print_hir(hir: &Hir) {
     match hir.kind() {
         HirKind::Empty => println!("Empty {:?}", hir),
-        // HirKind::Literal(l) => {
-        //     println!("Literal: {:?}", l);
-        //     let patterns = generate_patterns(l.as_bytes());
-        //     let new_pattern = patterns.join("|");
-        //     println!("Updated Pattern: {:?}", new_pattern);
-        // },
         HirKind::Literal(Literal(bytes)) => {
             let bytes_ref: &[u8] = &bytes;
-            if let Ok(s) = std::str::from_utf8(bytes_ref) {
-                println!("Literal: {:?}", s);
-                let patterns = generate_patterns(bytes_ref);
-                let new_pattern = patterns.join("|");
-                println!("Updated Pattern: {:?}", new_pattern);
-            } else {
-                println!("Literal (non-UTF-8): {:?}", bytes);
-                let patterns = generate_patterns(bytes_ref);
-                let new_pattern = patterns.join("|");
-                println!("Updated Pattern: {:?}", new_pattern);
-            }
+            let s = std::str::from_utf8(bytes_ref).unwrap();
+            println!("Literal: {:?}", s);
+            let patterns = generate_patterns(bytes_ref);
+            let new_pattern = patterns.join("|");
+            println!("Updated Pattern: {:?}", new_pattern);
         },
         HirKind::Class(class) => println!("Class: {:?}", class),
         HirKind::Concat(hirs) => {
@@ -55,8 +43,15 @@ fn print_hir(hir: &Hir) {
             }
         },
         HirKind::Look(hirs) => println!("{:?}", hirs),
-        HirKind::Repetition(hirs) => println!("{:?}", hirs),
-        HirKind::Capture(hirs) => println!("{:?}", hirs),
+        HirKind::Repetition(hirs) => {
+            println!("Repetition: {:?}", hirs);
+            print_hir(&hirs.sub);
+
+        },
+        HirKind::Capture(hirs) => {
+            println!("Capture: {:?}", hirs);
+            print_hir(&hirs.sub);
+        },
     }
 }
 
@@ -69,12 +64,12 @@ pub fn run(read1: String, read2: Option<String>, pattern: String) {
 
     let barcode = Barcode::new(&pattern).expect("REASON");
 
-    while let Some(record) = reader.next() {
-        let record = record.expect("Error reading record");
-        let caps = barcode.match_read(&record).unwrap();
-        let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", caps, &record).unwrap();
-        println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual);
-    }
+    // while let Some(record) = reader.next() {
+    //     let record = record.expect("Error reading record");
+    //     let caps = barcode.match_read(&record).unwrap();
+    //     let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", caps, &record).unwrap();
+    //     println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual);
+    // }
 
     let mut parser = Parser::new();
     match parser.parse(&pattern) {
