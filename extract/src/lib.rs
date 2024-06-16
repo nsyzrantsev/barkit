@@ -2,10 +2,63 @@ mod fastq;
 mod errors;
 mod barcode;
 
+use seq_io::fastq::Reader;
+use barcode::Barcode;
+
+use regex_syntax::{hir::{Hir, HirKind, Literal}, Parser};
 use std::str;
 
-use seq_io::fastq::{Reader,Record};
-use barcode::Barcode;
+fn generate_patterns(literal: &[u8]) -> Vec<String> {
+    let mut patterns = Vec::new();
+    for i in 0..literal.len() {
+        let mut pattern = literal.to_vec();
+        pattern[i] = b'.';
+        patterns.push(String::from_utf8(pattern).unwrap());
+    }
+    patterns
+}
+
+fn print_hir(hir: &Hir) {
+    match hir.kind() {
+        HirKind::Empty => println!("Empty {:?}", hir),
+        // HirKind::Literal(l) => {
+        //     println!("Literal: {:?}", l);
+        //     let patterns = generate_patterns(l.as_bytes());
+        //     let new_pattern = patterns.join("|");
+        //     println!("Updated Pattern: {:?}", new_pattern);
+        // },
+        HirKind::Literal(Literal(bytes)) => {
+            let bytes_ref: &[u8] = &bytes;
+            if let Ok(s) = std::str::from_utf8(bytes_ref) {
+                println!("Literal: {:?}", s);
+                let patterns = generate_patterns(bytes_ref);
+                let new_pattern = patterns.join("|");
+                println!("Updated Pattern: {:?}", new_pattern);
+            } else {
+                println!("Literal (non-UTF-8): {:?}", bytes);
+                let patterns = generate_patterns(bytes_ref);
+                let new_pattern = patterns.join("|");
+                println!("Updated Pattern: {:?}", new_pattern);
+            }
+        },
+        HirKind::Class(class) => println!("Class: {:?}", class),
+        HirKind::Concat(hirs) => {
+            println!("Concat: {:?}", hirs);
+            for hir in hirs {
+                print_hir(hir);
+            }
+        },
+        HirKind::Alternation(hirs) => {
+            println!("Alternation: {:?}", hirs);
+            for hir in hirs {
+                print_hir(hir);
+            }
+        },
+        HirKind::Look(hirs) => println!("{:?}", hirs),
+        HirKind::Repetition(hirs) => println!("{:?}", hirs),
+        HirKind::Capture(hirs) => println!("{:?}", hirs),
+    }
+}
 
 
 pub fn run(read1: String, read2: Option<String>, pattern: String) {
@@ -22,4 +75,14 @@ pub fn run(read1: String, read2: Option<String>, pattern: String) {
         let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", caps, &record).unwrap();
         println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual);
     }
+
+    let mut parser = Parser::new();
+    match parser.parse(&pattern) {
+        Ok(hir) => {
+            println!("Parsed HIR: {:?}", hir);
+            print_hir(&hir);
+        }
+        Err(err) => println!("Error parsing regex: {}", err),
+    }
+
 }
