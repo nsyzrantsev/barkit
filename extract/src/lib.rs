@@ -3,8 +3,6 @@ mod errors;
 mod barcode;
 mod pattern;
 
-use regex::Regex;
-use regex_syntax::Parser;
 use seq_io::fastq::Reader;
 use barcode::Barcode;
 
@@ -15,12 +13,8 @@ pub fn run(read1: String, read2: Option<String>, pattern: String) {
     let fastq_buf = fastq::read_fastq(&read1);
 
     let mut reader = Reader::new(fastq_buf);
-
-    let hir = Parser::new().parse(&pattern).unwrap();
-
-    println!("{:?}", hir);
     
-    let updated_pattern = pattern::update_hir_pattern(&hir);
+    let updated_pattern = pattern::update_pattern(&pattern);
 
     println!("Final updated pattern: {:?}", updated_pattern);
 
