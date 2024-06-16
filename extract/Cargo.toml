@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitvec = "1.0.1"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 flate2 = "1.0.30"
 regex = "1.10.4"
+regex-syntax = "0.8.4"
 seq_io = "0.3.2"
 thiserror = "1.0.61"
