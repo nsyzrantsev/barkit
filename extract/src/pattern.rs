@@ -2,12 +2,12 @@ use std::mem::size_of;
 
 use fancy_regex::Regex;
 
-const ERROR_PER_TEN_NUCLEOTIDES: usize = 2;
+const ERROR_PER_TEN_NUCLEOTIDES: usize = 1;
 const PATTERN_REGEX: &str = r"(?<!\[)\b[ATGCN]+\b(?!\])";
 
 
 pub fn generate_fuzzy_patterns(string: &str, error_num: usize) -> Vec<String> {
-    if string.len() == 1 {
+    if string.len() == 1 || error_num == 0 {
         return vec![string.to_string()];
     }
     if string.is_empty() {
@@ -15,45 +15,33 @@ pub fn generate_fuzzy_patterns(string: &str, error_num: usize) -> Vec<String> {
     }
 
     let num_chars = string.chars().count();
-    assert!(num_chars <= size_of::<usize>() * 8, "too many characters");
+    assert!(num_chars <= std::mem::size_of::<usize>() * 8, "too many characters");
 
-    // Instead of using `pow` (which is intuitive to humans!), let's just generate a mask of all 1s
-    // and then shift it to match the count of 1s with the number of characters.
     let max_permutation_mask = usize::max_value()
         .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32)
         .unwrap();
-    let mut cases = Vec::with_capacity(max_permutation_mask);
 
-    let (upper, lower) = string.chars().fold(
-        (Vec::with_capacity(num_chars), Vec::with_capacity(num_chars)),
-        |(mut upper, mut lower), c| {
-            upper.push(c.to_ascii_uppercase());
-            lower.push('.');
-            (upper, lower)
-        }
-    );
-
-    let len = string.len();
+    let mut cases = Vec::new();
+    
+    let upper: Vec<char> = string.chars().map(|c| c.to_ascii_uppercase()).collect();
+    
     for permutation_mask in 0..=max_permutation_mask {
-        let mut s = String::with_capacity(len);
+        if (permutation_mask as u32).count_ones() as usize != num_chars - error_num {
+            continue;
+        }
+        
+        let mut s = String::with_capacity(num_chars);
         for idx in 0..num_chars {
             if (permutation_mask & (1 << idx)) == 0 {
-                s.push(lower[idx])
+                s.push('.');
             } else {
-                s.push(upper[idx])
+                s.push(upper[idx]);
             }
         }
         cases.push(s);
     }
 
-    let mut new_cases = Vec::<String>::new();
-    for i in cases {
-        if i.chars().filter(|c| *c == '.').count() == error_num {
-            new_cases.push(i);
-        } 
-    }
-
-    new_cases
+    cases
 }
 
 
