@@ -17,6 +17,7 @@ strip = true
 clap = { version = "4.5.4", features = ["derive", "env"] }
 fancy-regex = "0.13.0"
 flate2 = "1.0.30"
+pyo3 = "0.21.2"
 regex = "1.10.4"
 seq_io = "0.3.2"
 thiserror = "1.0.61"
