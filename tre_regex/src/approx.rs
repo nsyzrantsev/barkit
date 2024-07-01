@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub type RegApproxMatchStr<'a> = RegApproxMatch<&'a str, Result<Cow<'a, str>>>;
-pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], Cow<'a, [u8]>>;
+pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], (Cow<'a, [u8]>, usize, usize)>;
 
 /// Regex params passed to approximate matching functions such as [`regaexec`]
 #[cfg(feature = "approx")]
@@ -21,78 +21,6 @@ impl RegApproxParams {
     #[inline]
     pub fn new() -> Self {
         Self(tre::regaparams_t::default())
-    }
-
-    /// Sets the [`cost_ins`](tre_regex_sys::regaparams_t::cost_ins) element.
-    #[must_use]
-    #[inline]
-    pub const fn cost_ins(&self, cost_ins: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.cost_ins = cost_ins;
-        copy
-    }
-
-    /// Sets the [`cost_del`](tre_regex_sys::regaparams_t::cost_del) element.
-    #[must_use]
-    #[inline]
-    pub const fn cost_del(&self, cost_del: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.cost_del = cost_del;
-        copy
-    }
-
-    /// Sets the [`cost_subst`](tre_regex_sys::regaparams_t::cost_subst) element.
-    #[must_use]
-    #[inline]
-    pub const fn cost_subst(&self, cost_subst: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.cost_subst = cost_subst;
-        copy
-    }
-
-    /// Sets the [`max_cost`](tre_regex_sys::regaparams_t::max_cost) element.
-    #[must_use]
-    #[inline]
-    pub const fn max_cost(&self, max_cost: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.max_cost = max_cost;
-        copy
-    }
-
-    /// Sets the [`max_ins`](tre_regex_sys::regaparams_t::max_ins) element.
-    #[must_use]
-    #[inline]
-    pub const fn max_ins(&self, max_ins: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.max_ins = max_ins;
-        copy
-    }
-
-    /// Sets the [`max_del`](tre_regex_sys::regaparams_t::max_del) element.
-    #[must_use]
-    #[inline]
-    pub const fn max_del(&self, max_del: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.max_del = max_del;
-        copy
-    }
-
-    /// Sets the [`max_subst`](tre_regex_sys::regaparams_t::max_subst) element.
-    #[must_use]
-    #[inline]
-    pub const fn max_subst(&self, max_subst: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.max_subst = max_subst;
-        copy
-    }
-
-    /// Sets the [`max_err`](tre_regex_sys::regaparams_t::max_err) element.
-    #[must_use]
-    #[inline]
-    pub const fn max_err(&self, max_err: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.max_err = max_err;
-        copy
     }
 
     /// Get an immutable reference to the underlying [`regaparams_t`](tre_regex_sys::regaparams_t) object.
@@ -188,7 +116,7 @@ impl Regex {
             };
 
             #[allow(clippy::match_wildcard_for_single_variants)]
-            result.push(Some(match pmatch {
+            result.push(Some(match pmatch.0 {
                 Cow::Borrowed(pmatch) => match std::str::from_utf8(pmatch) {
                     Ok(s) => Ok(s.into()),
                     Err(e) => Err(RegexError::new(
@@ -246,7 +174,7 @@ impl Regex {
             return Err(self.regerror(result));
         }
 
-        let mut result: Vec<Option<Cow<'a, [u8]>>> = Vec::with_capacity(nmatches);
+        let mut result: Vec<Option<(Cow<'a, [u8]>, usize, usize)>> = Vec::with_capacity(nmatches);
         for pmatch in match_vec {
             if pmatch.rm_so < 0 || pmatch.rm_eo < 0 {
                 result.push(None);
@@ -259,7 +187,7 @@ impl Regex {
             #[allow(clippy::cast_sign_loss)]
             let end_offset = pmatch.rm_eo as usize;
 
-            result.push(Some(Cow::Borrowed(&data[start_offset..end_offset])));
+            result.push(Some((Cow::Borrowed(&data[start_offset..end_offset]), start_offset, end_offset)));
         }
 
         Ok(RegApproxMatchBytes::new(data, result, amatch))

@@ -13,4 +13,3 @@ pkg-config = "0.3.30" # XXX - this should be optional but we can't.
 default = ["approx", "vendored"]
 vendored = ["autotools", "fs_extra"]
 approx = []
-wchar = []

@@ -80,10 +80,6 @@ fn main() {
         .allowlist_var("REG_.*")
         .blocklist_type("register_t");
 
-    if !cfg!(feature = "wchar") {
-        bindings = bindings.blocklist_function("tre_reg(a)?w(n)?(comp|exec)");
-    }
-
     if !cfg!(feature = "approx") {
         bindings = bindings
             .blocklist_function("tre_rega(w)?(n)?exec")
