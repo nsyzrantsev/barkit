@@ -5,8 +5,7 @@ mod fastq;
 use clap::{command, Parser};
 use seq_io::fastq::{Reader, Record};
 
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use tre_regex::{RegApproxParams, RegcompFlags, Regex as TreRegex, RegexecFlags};
 
 
 #[derive(Parser, Debug)]
@@ -21,7 +20,7 @@ struct Args {
     read2: Option<String>,
 }
 
-fn main() -> PyResult<()> {
+fn main() {
 
     // let args = Args::parse();
     
@@ -29,41 +28,44 @@ fn main() -> PyResult<()> {
 
     // println!("{:?}", fastq::print_fastq(fastq_buf));
     
+    let regcomp_flags = RegcompFlags::new()
+        .add(RegcompFlags::EXTENDED)
+        .add(RegcompFlags::ICASE);
+    let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
+    let regaexec_params = RegApproxParams::new()
+        .cost_ins(0)
+        .cost_del(0)
+        .cost_subst(1)
+        .max_cost(2)
+        .max_del(0)
+        .max_ins(0)
+        .max_subst(2)
+        .max_err(2);
 
-    pyo3::prepare_freethreaded_python();
+    let compiled_reg = TreRegex::new_bytes(b"^[ATGCN]*T([ATGCN]{12})CTCCGCTTAAGGGACT", regcomp_flags).expect("Regex::new");
+    let result = compiled_reg
+        .regaexec_bytes(
+            b"NATGTCTTAAACTTCCGCATGGCGTAGAGTAAACGGGCTCCGCTTAAGGGACT",   // String to match against
+            &regaexec_params, // Matching parameters
+            3,                // Number of matches we want
+            regaexec_flags,   // Flags
+        )
+        .expect("regaexec");
 
-    let pattern = "^[ATGCN]*T(?P<UMI>[ATGCN]{12})[ATGCN]{3}CGCTTAAGGGACT";
-    let text = "NATGTCTTAAACTTCCGCATGGCGTAGAGTAAACGGGCTCCGCTTAAGGGACTTCCGCATGGCGTAGAGTAAACGGGCTCCGCTTAAGGGACT";
+    let matched = result.get_matches();
 
-    Python::with_gil(|py| {
-        let module_code = r#"
-import regex
+    let matched_0 = matched[0].as_ref();
+    assert!(matched_0.is_some());
+    assert_eq!(matched_0.unwrap().0.as_ref(), b"NATGTCTTAAACTTCCGCATGGCGTAGAGTAAACGGGCTCCGCTTAAGGGACT");
 
-def match_barcode(pattern, text):
-    match = regex.search(pattern, text, regex.BESTMATCH)
-    if match:
-        barcode_seq = match.group("UMI").replace("N", "A")
-        barcode_start, barcode_end = match.span("UMI")
-        pattern_match_start, pattern_match_end = match.span()
-        return barcode_start, barcode_end, pattern_match_start, pattern_match_end
-    return None, None, None, None
-"#;
-
-        let module = PyModule::from_code(py, module_code, "", "")?;
-        let fun = module.getattr("match_barcode")?;
-
-        let args = (pattern, text);
-        let result = fun.call1(args)?;
-        
-        // Convert result to Rust tuple
-        let result_tuple: (Option<i64>, Option<i64>, Option<i64>, Option<i64>) = result.extract()?;
-
-        println!("UMI barcode start: {}", result_tuple.0.unwrap());
-        println!("UMI barcode end: {}", result_tuple.1.unwrap());
-        println!("Pattern match start: {}", result_tuple.2.unwrap());
-        println!("Pattern mathc end: {}", result_tuple.3.unwrap());
-
-        Ok(())
-    })
+    let matched_1 = matched[1].as_ref();
+    assert!(matched_1.is_some());
+    assert_eq!(matched_1.unwrap().0.as_ref(), b"AGAGTAAACGGG");
+    
+    let start = matched_1.unwrap().1;
+    let end = matched_1.unwrap().2;
+    
+    let read = std::str::from_utf8(matched_0.unwrap().0.as_ref()).unwrap();
+    assert_eq!(&read[start..end], "AGAGTAAACGGG");
 }
 
