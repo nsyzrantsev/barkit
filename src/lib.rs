@@ -10,7 +10,7 @@ pub struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Preprocess molecular, cell and sample barcodes
+    /// Pre-process molecular, cell and sample barcodes
     #[clap(arg_required_else_help = true)]
     Extract {
         /// (gzipped) input forward FASTQ file
@@ -29,12 +29,16 @@ pub enum Commands {
         #[arg(short='O', long, requires = "out_read1")]
         out_read2: Option<String>,
 
-        /// barcode pattern of read1
+        /// barcode pattern of forward reads
         #[arg(short='p', long)]
-        pattern: String,
+        pattern1: String,
+
+        /// barcode pattern of reverse reads
+        #[arg(short='P', long, requires = "pattern1")]
+        pattern2: Option<String>,
 
         /// max mismatch with pattern
         #[arg(short='m', long, default_value = "2")]
-        max_mismatch: usize,
+        max_mismatch: Option<usize>,
     },
 }

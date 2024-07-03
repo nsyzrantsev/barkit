@@ -12,17 +12,18 @@ use barcode::Barcode;
 pub fn run(
     read1: String, 
     read2: Option<String>, 
-    pattern: String, 
-    max_mismatch: usize, 
+    pattern1: String,
+    pattern2: Option<String>,
     out_read1: Option<String>, 
-    out_read2: Option<String>
+    out_read2: Option<String>,
+    max_mismatch: Option<usize>, 
 ) {
     
     let fastq_buf = fastq::read_fastq(&read1);
 
     let mut reader = Reader::new(fastq_buf);
 
-    let barcode = Barcode::new(&pattern, max_mismatch).expect("REASON");
+    let barcode = Barcode::new(&pattern1, max_mismatch.unwrap()).expect("REASON");
 
     let mut processed_reads: Vec<Vec<u8>> = Vec::new();
 
@@ -40,9 +41,7 @@ pub fn run(
                     None => println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual),
                 }
             },
-            Err(_) => {
-                println!("{}\n{}\n+\n{}", std::str::from_utf8(record.head()).unwrap(), std::str::from_utf8(record.seq()).unwrap(), std::str::from_utf8(record.qual()).unwrap())
-            }
+            Err(_) => {}
         };
     }
 
