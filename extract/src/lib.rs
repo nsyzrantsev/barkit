@@ -1,23 +1,19 @@
 mod fastq;
 mod errors;
 mod barcode;
-mod pattern;
 
-use std::collections::HashMap;
-
-use regex::{Captures, Regex};
 use seq_io::fastq::{Reader, Record};
 use barcode::Barcode;
 
 
 
-pub fn run(read1: String, read2: Option<String>, pattern: String) {
+pub fn run(read1: String, read2: Option<String>, pattern: String, max_mismatch: usize) {
     
     let fastq_buf = fastq::read_fastq(&read1);
 
     let mut reader = Reader::new(fastq_buf);
 
-    let barcode = Barcode::new(&pattern).expect("REASON");
+    let barcode = Barcode::new(&pattern, max_mismatch).expect("REASON");
 
     while let Some(record) = reader.next() {
         let record = record.expect("Error reading record");

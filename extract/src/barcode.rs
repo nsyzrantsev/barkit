@@ -7,11 +7,12 @@ use crate::errors::Error;
 
 pub struct Barcode {
     compiled_reg: TreRegex,
-    caputure_groups: HashMap<String, usize>
+    caputure_groups: HashMap<String, usize>,
+    max_mismatch: usize
 }
 
 impl Barcode {
-    pub fn new(pattern: &str) -> Result<Self, Error> {
+    pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
         let caputure_groups = get_capture_group_indices(&pattern);
         let modified_pattern = remove_capture_groups(pattern);
         let regcomp_flags = RegcompFlags::new()
@@ -19,7 +20,7 @@ impl Barcode {
             .add(RegcompFlags::ICASE);
         let compiled_reg = TreRegex::new_bytes(modified_pattern.as_bytes(), regcomp_flags).expect("Regex::new");
 
-        Ok(Self { compiled_reg, caputure_groups })
+        Ok(Self { compiled_reg, caputure_groups, max_mismatch })
     }
 
     pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<(Cow<'a, [u8]>, usize, usize), Error> {
@@ -33,7 +34,7 @@ impl Barcode {
             .max_cost(2)
             .max_del(0)
             .max_ins(0)
-            .max_subst(2)
+            .max_subst(self.max_mismatch as i32)
             .max_err(2);
     
         let result = self.compiled_reg

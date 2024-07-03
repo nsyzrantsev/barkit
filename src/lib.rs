@@ -24,5 +24,9 @@ pub enum Commands {
         /// barcode pattern of read1
         #[arg(short='p', long)]
         pattern: String,
+
+        /// max mismatch with pattern
+        #[arg(short='m', long, default_value = "2")]
+        max_mismatch: usize,
     },
 }
