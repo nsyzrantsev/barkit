@@ -1,12 +1,12 @@
-use regex::{self, Regex, Captures};
-use tre_regex::{RegApproxParams, RegcompFlags, Regex as TreRegex, RegexError, RegexecFlags};
+use regex::{self, Regex};
+use tre_regex::{RegApproxParams, RegcompFlags, Regex as TreRegex, RegexecFlags};
 use std::{borrow::Cow, collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord};
 
 use crate::errors::Error;
 
 pub struct Barcode {
-    compiled_reg: TreRegex,
+    compiled_regex: TreRegex,
     caputure_groups: HashMap<String, usize>,
     max_mismatch: usize
 }
@@ -14,13 +14,13 @@ pub struct Barcode {
 impl Barcode {
     pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
         let caputure_groups = get_capture_group_indices(&pattern);
-        let modified_pattern = remove_capture_groups(pattern);
+        let posix_pattern = remove_capture_groups(pattern);
         let regcomp_flags = RegcompFlags::new()
             .add(RegcompFlags::EXTENDED)
             .add(RegcompFlags::ICASE);
-        let compiled_reg = TreRegex::new_bytes(modified_pattern.as_bytes(), regcomp_flags).expect("Regex::new");
+        let compiled_regex = TreRegex::new_bytes(posix_pattern.as_bytes(), regcomp_flags).expect("Regex::new");
 
-        Ok(Self { compiled_reg, caputure_groups, max_mismatch })
+        Ok(Self { compiled_regex, caputure_groups, max_mismatch })
     }
 
     pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<(Cow<'a, [u8]>, usize, usize), Error> {
@@ -37,7 +37,7 @@ impl Barcode {
             .max_subst(self.max_mismatch as i32)
             .max_err(2);
     
-        let result = self.compiled_reg
+        let result = self.compiled_regex
             .regaexec_bytes(
                 read_seq.as_bytes(),
                 &regaexec_params,
