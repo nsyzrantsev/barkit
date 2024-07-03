@@ -2,12 +2,21 @@ mod fastq;
 mod errors;
 mod barcode;
 
+use std::{fs::File, io::Write};
+
 use seq_io::fastq::{Reader, Record};
 use barcode::Barcode;
 
 
 
-pub fn run(read1: String, read2: Option<String>, pattern: String, max_mismatch: usize) {
+pub fn run(
+    read1: String, 
+    read2: Option<String>, 
+    pattern: String, 
+    max_mismatch: usize, 
+    out_read1: Option<String>, 
+    out_read2: Option<String>
+) {
     
     let fastq_buf = fastq::read_fastq(&read1);
 
@@ -15,17 +24,38 @@ pub fn run(read1: String, read2: Option<String>, pattern: String, max_mismatch: 
 
     let barcode = Barcode::new(&pattern, max_mismatch).expect("REASON");
 
+    let mut processed_reads: Vec<Vec<u8>> = Vec::new();
+
     while let Some(record) = reader.next() {
         let record = record.expect("Error reading record");
         let caps: Result<(std::borrow::Cow<[u8]>, usize, usize), errors::Error> = barcode.match_read(&record);
         match caps {
             Ok(capture) => {
                 let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", capture, &record).unwrap();
-                println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual);
+                match out_read1 {
+                    Some(_) => {
+                        let read = format!("{}\n{}\n+\n{}\n", read_header, read_seq, read_qual).into_bytes();
+                        processed_reads.push(read);
+                    },
+                    None => println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual),
+                }
             },
             Err(_) => {
                 println!("{}\n{}\n+\n{}", std::str::from_utf8(record.head()).unwrap(), std::str::from_utf8(record.seq()).unwrap(), std::str::from_utf8(record.qual()).unwrap())
             }
         };
     }
+
+    match out_read1 {
+        Some(out_file_path) => {
+            save_reads_into_file(processed_reads, &out_file_path);
+        },
+        None => {}
+    };
+}
+
+
+fn save_reads_into_file(reads: Vec<Vec<u8>>, out_file: &str) {
+    let mut f = File::create(out_file).expect("Unable to create file");
+    f.write_all(&reads.concat()).expect("Unable to write data");
 }
