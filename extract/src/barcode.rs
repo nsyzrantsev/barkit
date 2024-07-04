@@ -8,7 +8,8 @@ use crate::errors::Error;
 pub struct Barcode {
     compiled_regex: TreRegex,
     caputure_groups: HashMap<String, usize>,
-    max_mismatch: usize
+    regaexec_flags: RegexecFlags,
+    regaexec_params: RegApproxParams
 }
 
 impl Barcode {
@@ -19,13 +20,6 @@ impl Barcode {
             .add(RegcompFlags::EXTENDED)
             .add(RegcompFlags::ICASE);
         let compiled_regex = TreRegex::new_bytes(posix_pattern.as_bytes(), regcomp_flags).expect("Regex::new");
-
-        Ok(Self { compiled_regex, caputure_groups, max_mismatch })
-    }
-
-    pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<(Cow<'a, [u8]>, usize, usize), Error> {
-        let read_seq = str::from_utf8(read.seq())?;
-        
         let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
         let regaexec_params = RegApproxParams::new()
             .cost_ins(0)
@@ -34,15 +28,26 @@ impl Barcode {
             .max_cost(2)
             .max_del(0)
             .max_ins(0)
-            .max_subst(self.max_mismatch as i32)
+            .max_subst(max_mismatch as i32)
             .max_err(2);
+
+        Ok(Self {
+            compiled_regex,
+            caputure_groups,
+            regaexec_flags,
+            regaexec_params
+        })
+    }
+
+    pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<(Cow<'a, [u8]>, usize, usize), Error> {
+        let read_seq = str::from_utf8(read.seq())?;
     
         let result = self.compiled_regex
             .regaexec_bytes(
                 read_seq.as_bytes(),
-                &regaexec_params,
+                &self.regaexec_params,
                 3,
-                regaexec_flags,
+                self.regaexec_flags,
             )?;
         
         let matched = result.get_matches();
@@ -52,21 +57,26 @@ impl Barcode {
         Ok(matched[capture_group_index].clone().unwrap())
     }
 
-    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: (std::borrow::Cow<[u8]>, usize, usize), read: &RefRecord) -> Result<(String, String, String), Error> {
+    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: (std::borrow::Cow<[u8]>, usize, usize), read: &RefRecord) -> Result<(Vec::<u8>, Vec::<u8>, Vec::<u8>), Error> {
         let start = matched_pattern.1;
         let end = matched_pattern.2;
 
         let read_seq = read.seq();
         let read_qual = read.qual();
 
-        let new_read_seq = [&read_seq[..start], &read_seq[end..]].concat();
-        let new_read_qual = [&read_qual[..start], &read_qual[end..]].concat();
+        let mut new_read_seq = [&read_seq[..start], &read_seq[end..]].concat();
+        let mut new_read_qual = [&read_qual[..start], &read_qual[end..]].concat();
 
-        let new_read_header = Self::move_to_the_header(barcode_type, read, start, end)?;
-        Ok((String::from_utf8(new_read_seq)?, String::from_utf8(new_read_qual)?, new_read_header))
+        let mut new_read_header = Self::move_to_the_header(barcode_type, read, start, end)?;
+
+        new_read_header.push(b'\n');
+        new_read_seq.push(b'\n');
+        new_read_qual.push(b'\n');
+        
+        Ok((new_read_seq, new_read_qual, new_read_header))
     }
 
-    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<String, Error> {
+    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec::<u8>, Error> {
         let read_header = str::from_utf8(read.head())?;
         let read_seq = read.seq();
         let read_qual = read.qual();
@@ -74,7 +84,7 @@ impl Barcode {
         let barcode_seq = str::from_utf8(&read_seq[start..end])?;
         let barcode_qual = str::from_utf8(&read_qual[start..end])?;
 
-        Ok(format!("{} {}:{}:{}", read_header, barcode_type, barcode_seq, barcode_qual))
+        Ok(format!("{} {}:{}:{}", read_header, barcode_type, barcode_seq, barcode_qual).as_bytes().to_vec())
     }
 }
 

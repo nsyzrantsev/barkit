@@ -2,9 +2,13 @@ mod fastq;
 mod errors;
 mod barcode;
 
+use std::io::BufWriter;
 use std::{fs::File, io::Write};
 
-use seq_io::fastq::{Reader, Record};
+use flate2::write::GzEncoder;
+use flate2::Compression;
+
+use seq_io::fastq::Reader;
 use barcode::Barcode;
 
 
@@ -16,7 +20,7 @@ pub fn run(
     pattern2: Option<String>,
     out_read1: Option<String>, 
     out_read2: Option<String>,
-    max_mismatch: Option<usize>, 
+    max_mismatch: Option<usize>,
 ) {
     
     let fastq_buf = fastq::read_fastq(&read1);
@@ -25,7 +29,10 @@ pub fn run(
 
     let barcode = Barcode::new(&pattern1, max_mismatch.unwrap()).expect("REASON");
 
-    let mut processed_reads: Vec<Vec<u8>> = Vec::new();
+    let file = File::create(out_read1.clone().unwrap()).expect("Unable to create file");
+    let encoder = GzEncoder::new(file, Compression::default());
+    let buffer_size = 50 * 1024 * 1024; // 50 MB buffer size, you can adjust this size as needed
+    let mut f = BufWriter::with_capacity(buffer_size, encoder);
 
     while let Some(record) = reader.next() {
         let record = record.expect("Error reading record");
@@ -35,26 +42,18 @@ pub fn run(
                 let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", capture, &record).unwrap();
                 match out_read1 {
                     Some(_) => {
-                        let read = format!("{}\n{}\n+\n{}\n", read_header, read_seq, read_qual).into_bytes();
-                        processed_reads.push(read);
+                        f.write_all(&read_header).expect("Unable to write read header");
+                        f.write_all(b"+\n").expect("Unable to write read separator");
+                        f.write_all(&read_seq).expect("Unable to write read sequence");
+                        f.write_all(&read_qual).expect("Unable to write read quality");
                     },
-                    None => println!("{}\n{}\n+\n{}", read_header, read_seq, read_qual),
+                    None => eprintln!("Failed to write to output file"),
                 }
             },
             Err(_) => {}
         };
     }
 
-    match out_read1 {
-        Some(out_file_path) => {
-            save_reads_into_file(processed_reads, &out_file_path);
-        },
-        None => {}
-    };
-}
-
-
-fn save_reads_into_file(reads: Vec<Vec<u8>>, out_file: &str) {
-    let mut f = File::create(out_file).expect("Unable to create file");
-    f.write_all(&reads.concat()).expect("Unable to write data");
+    f.flush().expect("Failed to flush buffer");
+    f.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
 }
