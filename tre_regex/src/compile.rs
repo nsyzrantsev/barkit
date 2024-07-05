@@ -3,16 +3,17 @@ use std::mem;
 
 use crate::{
     errors::{regerror, Result},
-    flags::RegcompFlags,
+    flags::{RegcompFlags, RegFlags},
     tre, TreRegex,
 };
 
 impl TreRegex {
-    pub fn new(reg: &str, flags: RegcompFlags) -> Result<Self> {
-        Self::new_bytes(reg.as_bytes(), flags)
-    }
-
-    pub fn new_bytes(reg: &[u8], flags: RegcompFlags) -> Result<Self> {
+    pub fn new_bytes(reg: &[u8], flags: &[RegFlags]) -> Result<Self> {
+        let mut regcomp_flags = RegcompFlags::new();
+        for flag in flags.iter() {
+            regcomp_flags = regcomp_flags.add(*flag);
+        }
+    
         let mut unwrapped_compiled_reg = mem::MaybeUninit::<tre::regex_t>::uninit();
 
         // SAFETY: unwrapped_compiled_reg is being initalised. reg is immutably passed and is not
@@ -23,7 +24,7 @@ impl TreRegex {
                 unwrapped_compiled_reg.as_mut_ptr(),
                 reg.as_ptr().cast::<c_char>(),
                 reg.len(),
-                flags.get(),
+                regcomp_flags.get(),
             )
         };
 
@@ -39,7 +40,7 @@ impl TreRegex {
 
 
 #[inline]
-pub fn regcomp_bytes(reg: &[u8], flags: RegcompFlags) -> Result<TreRegex> {
+pub fn regcomp_bytes(reg: &[u8], flags: &[RegFlags]) -> Result<TreRegex> {
     TreRegex::new_bytes(reg, flags)
 }
 
@@ -48,7 +49,7 @@ fn regcomp_bytes_works() {
     assert!(
         regcomp_bytes(
             b"[A-Za-z0-9]*",
-            RegcompFlags::new().add(RegcompFlags::BASIC)
+            &[RegcompFlags::BASIC, 1]
         )
         .is_ok(),
         "regcomp"
@@ -57,9 +58,7 @@ fn regcomp_bytes_works() {
     assert!(
         regcomp_bytes(
             b"[[:alpha:]]*",
-            RegcompFlags::new()
-                .add(RegcompFlags::EXTENDED)
-                .add(RegcompFlags::ICASE)
+            &[RegcompFlags::EXTENDED, RegcompFlags::ICASE]
         )
         .is_ok(),
         "regcomp"

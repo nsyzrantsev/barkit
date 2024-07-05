@@ -122,7 +122,7 @@ use crate::{compile::regcomp_bytes, flags::{RegcompFlags, RegexecFlags}};
 
 #[test]
 fn regerror_works() {
-    match regcomp_bytes(b"[a", RegcompFlags::new().add(RegexecFlags::NONE)) {
+    match regcomp_bytes(b"[a", &[RegexecFlags::NONE]) {
         Ok(_) => panic!("regcomp"),
         Err(e) => {
             assert_eq!(e.kind, ErrorKind::Tre(tre::reg_errcode_t::REG_EBRACK));

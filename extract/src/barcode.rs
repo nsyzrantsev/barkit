@@ -1,41 +1,23 @@
 use regex::{self, Regex};
-use tre_regex::{fuzzy::{FuzzyRegexParams, Match}, flags::{RegcompFlags, RegexecFlags}, TreRegex};
+use tre_regex::fuzzy::{FuzzyRegex, Match};
 use std::{collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord};
 
 use crate::errors::Error;
 
 pub struct Barcode {
-    compiled_regex: TreRegex,
-    caputure_groups: HashMap<String, usize>,
-    regaexec_flags: RegexecFlags,
-    regaexec_params: FuzzyRegexParams
+    compiled_regex: FuzzyRegex,
+    caputure_groups: HashMap<String, usize>
 }
 
 impl Barcode {
     pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
         let caputure_groups = get_capture_group_indices(&pattern);
         let posix_pattern = remove_capture_groups(pattern);
-        let regcomp_flags = RegcompFlags::new()
-            .add(RegcompFlags::EXTENDED)
-            .add(RegcompFlags::ICASE);
-        let compiled_regex = TreRegex::new_bytes(posix_pattern.as_bytes(), regcomp_flags).expect("Regex::new");
-        let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
-        let regaexec_params = FuzzyRegexParams::new()
-            .cost_insertion(0)
-            .cost_deletion(0)
-            .cost_substitution(1)
-            .max_cost(2)
-            .max_deletion(0)
-            .max_insertion(0)
-            .max_substitution(max_mismatch as i32)
-            .max_error(2);
-
+        let compiled_regex = FuzzyRegex::new(&posix_pattern, max_mismatch).expect("Regex::new");
         Ok(Self {
             compiled_regex,
             caputure_groups,
-            regaexec_flags,
-            regaexec_params
         })
     }
 
@@ -43,12 +25,7 @@ impl Barcode {
         let read_seq = str::from_utf8(read.seq())?;
     
         let result = self.compiled_regex
-            .regaexec_bytes(
-                read_seq.as_bytes(),
-                &self.regaexec_params,
-                3,
-                self.regaexec_flags,
-            )?;
+            .captures(read_seq.as_bytes(),3)?;
         
         let matched = result.get_matches();
 

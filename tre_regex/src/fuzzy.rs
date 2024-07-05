@@ -2,7 +2,7 @@ use std::ffi::c_int;
 
 use crate::{
     errors::{BindingErrorCode, ErrorKind, RegexError, Result},
-    flags::RegexecFlags,
+    flags::{RegexecFlags, RegcompFlags},
     tre, TreRegex
 };
 
@@ -171,15 +171,37 @@ impl<Data, Res> FuzzyMatch<Data, Res> {
     }
 }
 
-impl TreRegex {
-    pub fn regaexec_bytes<'a>(
+pub struct FuzzyRegex {
+    compiled_regex: TreRegex,
+    flags: RegexecFlags,
+    params: FuzzyRegexParams
+}
+
+impl FuzzyRegex {
+    pub fn new(reg: &str, max_substitution: usize, max_deletion: usize, max_insertion: usize, max_error: usize) -> Result<FuzzyRegex> {
+        let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
+        let regaexec_params = FuzzyRegexParams::new()
+            .cost_insertion(1)
+            .cost_deletion(1)
+            .cost_substitution(1)
+            .max_cost(2)
+            .max_deletion(max_deletion as i32)
+            .max_insertion(max_insertion as i32)
+            .max_substitution(max_substitution as i32)
+            .max_error(max_error as i32);
+        Ok(Self {
+            compiled_regex: TreRegex::new_bytes(reg.as_bytes(), &[RegcompFlags::EXTENDED, RegcompFlags::ICASE])?,
+            flags: regaexec_flags,
+            params: regaexec_params
+        })
+    }
+
+    pub fn captures<'a>(
         &self,
         data: &'a [u8],
-        params: &FuzzyRegexParams,
         nmatches: usize,
-        flags: RegexecFlags,
     ) -> Result<FuzzyMatchBytes<'a>> {
-        let Some(compiled_reg_obj) = self.get() else {
+        let Some(compiled_reg_obj) = self.compiled_regex.get() else {
             return Err(RegexError::new(
                 ErrorKind::Binding(BindingErrorCode::REGEX_VACANT),
                 "Attempted to unwrap a vacant Regex object",
@@ -202,12 +224,12 @@ impl TreRegex {
                 data.as_ptr().cast::<i8>(),
                 data.len(),
                 &mut amatch,
-                *params.get(),
-                flags.get(),
+                *self.params.get(),
+                self.flags.get(),
             )
         };
         if result != 0 {
-            return Err(self.regerror(result));
+            return Err(self.compiled_regex.regerror(result));
         }
 
         let mut result: Vec<Option<Match>> = Vec::with_capacity(nmatches);
@@ -234,43 +256,14 @@ impl TreRegex {
     }
 }
 
-#[inline]
-pub fn regaexec_bytes<'a>(
-    compiled_reg: &TreRegex,
-    data: &'a [u8],
-    params: &FuzzyRegexParams,
-    nmatches: usize,
-    flags: RegexecFlags,
-) -> Result<FuzzyMatchBytes<'a>> {
-    compiled_reg.regaexec_bytes(data, params, nmatches, flags)
-}
-
-#[cfg(test)]
-use crate::flags::RegcompFlags;
 
 #[test]
 fn test_regaexec_bytes() {
-    let regcomp_flags = RegcompFlags::new()
-        .add(RegcompFlags::EXTENDED)
-        .add(RegcompFlags::ICASE);
-    let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
-    let regaexec_params = FuzzyRegexParams::new()
-        .cost_insertion(1)
-        .cost_deletion(1)
-        .cost_substitution(1)
-        .max_cost(2)
-        .max_deletion(2)
-        .max_insertion(2)
-        .max_substitution(2)
-        .max_error(2);
-
-    let compiled_reg = TreRegex::new_bytes(b"^(hello).*(world)$", regcomp_flags).expect("Regex::new");
+    let compiled_reg = FuzzyRegex::new("^(hello).*(world)$", 2, 2, 2, 2).expect("Regex::new");
     let result = compiled_reg
-        .regaexec_bytes(
-            b"hullo warld",   // String to match against
-            &regaexec_params, // Matching parameters
-            3,                // Number of matches we want
-            regaexec_flags,   // Flags
+        .captures(
+            b"hullo warld",
+            3,
         )
         .expect("regaexec");
 
