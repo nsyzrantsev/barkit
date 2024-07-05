@@ -6,36 +6,37 @@ use std::io::Write;
 
 use barcode::BarcodeMatcher;
 
+
 pub fn run(
     read1: String, 
     read2: Option<String>, 
     pattern1: String,
     pattern2: Option<String>,
-    out_read1: Option<String>, 
+    out_read1: String, 
     out_read2: Option<String>,
     max_mismatch: usize,
+    max_memory: Option<usize>
 ) {
-    // if let Some(_) = out_fastq_file {
-    //     if let Err(e) = seq_io::fastq::write_to(&mut writer, &read_header, &read_seq, &read_qual) {
-    //         eprintln!("Failed to write to output file: {}", e);
-    //     }
-    // } else {
-    //     eprintln!("Failed to write to output file");
-    // }
-    process_fastq(read1, pattern1, out_read1.expect("REASON"), max_mismatch);
+    process_fastq(read1, pattern1, out_read1, max_mismatch, max_memory);
+
+    let out_read2 = out_read2.unwrap_or_else(|| {
+        eprintln!("{}", errors::Error::OutputFastqFileNotProvided);
+        std::process::exit(1); // or handle the error appropriately
+    });
 }
 
 fn process_fastq(
     read: String,
     pattern: String,
-    out_fastq_file: String,
+    out_read: String,
     max_mismatch: usize,
+    max_memory: Option<usize>
 ) {
     let barcode = BarcodeMatcher::new(&pattern, max_mismatch).expect("REASON");
     
-    let mut fastq_reader = fastq::get_fastq_reader(&read);
+    let mut fastq_reader = fastq::get_fastq_reader(&read, max_memory);
     
-    let mut fastq_writer = fastq::get_fastq_writer(&out_fastq_file);
+    let mut fastq_writer = fastq::get_fastq_writer(&out_read);
 
     while let Some(record) = fastq_reader.next() {
         let record = record.expect("Error reading record");

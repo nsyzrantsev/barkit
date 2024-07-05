@@ -23,7 +23,7 @@ pub enum Commands {
 
         /// (gzipped) output forward FASTQ file
         #[arg(short='o', long)]
-        out_read1: Option<String>,
+        out_read1: String,
 
         /// (gzipped) output reverse FASTQ file
         #[arg(short='O', long, requires = "out_read1")]
@@ -40,5 +40,9 @@ pub enum Commands {
         /// max mismatch with pattern
         #[arg(short='m', long, default_value = "2")]
         max_mismatch: usize,
+
+        /// max memory (RAM) usage in Megabyte (MB)
+        #[arg(short='r', long)]
+        max_memory: Option<usize>,
     },
 }

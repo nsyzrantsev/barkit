@@ -6,11 +6,17 @@ use seq_io::fastq::Reader;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 
 const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
-const BUFFER_SIZE: usize = 50 * 1024 * 1024; // 500 MB buffer size, you can adjust this size as needed
+const WRITE_BUFFER_SIZE: usize = 512 * 1024; // 512 KB buffer size, you can adjust this size as needed
 
-pub fn get_fastq_reader(fastq_path: &str) -> Reader<Box<dyn BufRead>> {
+pub fn get_fastq_reader(fastq_path: &str, max_memory: Option<usize>) -> Reader<Box<dyn BufRead>> {
     let path = Path::new(fastq_path);
     let file = File::open(&path).expect("couldn't open file");
+
+    let buffer_size = match max_memory {
+        Some(buffer_size) => buffer_size * 1024 * 1024,
+        None => file.metadata().unwrap().len() as usize,
+    };
+
     let mut first_two_bytes = [0u8; 2];
     
     File::open(&path)
@@ -22,7 +28,7 @@ pub fn get_fastq_reader(fastq_path: &str) -> Reader<Box<dyn BufRead>> {
         GZIP_MAGIC_BYTES => Reader::new(
             Box::new(
                 BufReader::with_capacity(
-                    BUFFER_SIZE, 
+                    buffer_size, 
                     GzDecoder::new(file)
                 )
             )
@@ -30,7 +36,7 @@ pub fn get_fastq_reader(fastq_path: &str) -> Reader<Box<dyn BufRead>> {
         _ => Reader::new(
             Box::new(
                 BufReader::with_capacity(
-                    BUFFER_SIZE, 
+                    buffer_size, 
                     file
                 )
             )
@@ -41,5 +47,5 @@ pub fn get_fastq_reader(fastq_path: &str) -> Reader<Box<dyn BufRead>> {
 pub fn get_fastq_writer(file: &str) -> BufWriter<flate2::write::GzEncoder<File>>{
     let file = File::create(file).expect("Unable to create file");
     let encoder = GzEncoder::new(file, Compression::default());
-    BufWriter::with_capacity(BUFFER_SIZE, encoder)
+    BufWriter::with_capacity(WRITE_BUFFER_SIZE, encoder)
 }
