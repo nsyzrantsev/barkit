@@ -5,6 +5,7 @@ mod barcode;
 use std::io::Write;
 
 use barcode::BarcodeMatcher;
+use seq_io::fastq::Record;
 
 
 pub fn run(
@@ -43,8 +44,13 @@ fn process_fastq(
         let caps = barcode.match_read(&record);
 
         if let Ok(capture) = caps {
-            let (read_seq, read_qual, read_header) = BarcodeMatcher::cut_from_read_seq("UMI", capture, &record).unwrap();
-            if let Err(e) = seq_io::fastq::write_to(&mut fastq_writer, &read_header, &read_seq, &read_qual) {
+            let new_read = BarcodeMatcher::cut_from_read_seq("UMI", capture, &record).unwrap();
+            if let Err(e) = seq_io::fastq::write_to(
+                &mut fastq_writer, 
+                new_read.head(), 
+                new_read.seq(), 
+                new_read.qual()
+            ) {
                 eprintln!("Failed to write to output file: {}", e);
             }
         }

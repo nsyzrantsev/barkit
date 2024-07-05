@@ -1,7 +1,7 @@
 use regex::{self, Regex};
 use fuzzy_regex::fuzzy::{FuzzyRegex, Match};
 use std::{collections::HashMap, str};
-use seq_io::fastq::{Record, RefRecord};
+use seq_io::fastq::{Record, RefRecord, OwnedRecord};
 
 use crate::errors::Error;
 
@@ -34,7 +34,7 @@ impl BarcodeMatcher {
         Ok(matched[capture_group_index].clone().unwrap())
     }
 
-    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<(Vec::<u8>, Vec::<u8>, Vec::<u8>), Error> {
+    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
         let start = matched_pattern.start();
         let end = matched_pattern.end();
 
@@ -45,7 +45,11 @@ impl BarcodeMatcher {
         let new_read_qual = [&read_qual[..start], &read_qual[end..]].concat();
         let new_read_header = Self::move_to_the_header(barcode_type, read, start, end)?;
         
-        Ok((new_read_seq, new_read_qual, new_read_header))
+        Ok(OwnedRecord {
+            head: new_read_seq,
+            seq: new_read_qual,
+            qual: new_read_header
+        })
     }
 
     fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
