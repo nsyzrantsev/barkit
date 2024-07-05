@@ -1,5 +1,5 @@
 [package]
-name = "tre_regex"
+name = "fuzzy_regex"
 version = "0.1.0"
 edition = "2021"
 

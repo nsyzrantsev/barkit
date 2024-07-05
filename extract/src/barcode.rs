@@ -1,5 +1,5 @@
 use regex::{self, Regex};
-use tre_regex::fuzzy::{FuzzyRegex, Match};
+use fuzzy_regex::fuzzy::{FuzzyRegex, Match};
 use std::{collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord};
 
@@ -7,12 +7,12 @@ use crate::errors::Error;
 
 pub struct BarcodeMatcher {
     regex: FuzzyRegex,
-    caputure_groups: HashMap<String, usize>
+    capture_groups: HashMap<String, usize>
 }
 
 impl BarcodeMatcher {
     pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
-        let caputure_groups = get_capture_group_indices(&pattern);
+        let capture_groups = get_capture_group_indices(&pattern);
         let posix_pattern = remove_capture_groups(pattern);
         let regex = FuzzyRegex::new(
             &posix_pattern, 
@@ -22,7 +22,7 @@ impl BarcodeMatcher {
         ).expect("Regex::new");
         Ok(Self {
             regex,
-            caputure_groups,
+            capture_groups,
         })
     }
 
@@ -30,7 +30,7 @@ impl BarcodeMatcher {
         let read_seq = read.seq();
         let result = self.regex.captures(read_seq,3)?;
         let matched = result.get_matches();
-        let capture_group_index = self.caputure_groups["UMI"];
+        let capture_group_index = self.capture_groups["UMI"];
         Ok(matched[capture_group_index].clone().unwrap())
     }
 

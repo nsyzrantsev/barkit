@@ -5,6 +5,21 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = ["fuzzy_regex", "extract"]
+
+[profile.release]
+opt-level = 3
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+rpath = false
+debug = false
+incremental = false
+target-cpu = "native"
+
 [dependencies]
 clap = { version = "4.5.4", features = ["env", "derive"] }
 extract = { path = "extract" }
