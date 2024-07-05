@@ -1,14 +1,13 @@
 use std::borrow::Cow;
 use std::ffi::c_int;
-use std::hint::unreachable_unchecked;
 
 use crate::{
-    err::{BindingErrorCode, ErrorKind, RegexError, Result},
-    tre, TreRegex, RegexecFlags,
+    errors::{BindingErrorCode, ErrorKind, RegexError, Result},
+    tre, TreRegex, Match, RegexecFlags
 };
 
 pub type RegApproxMatchStr<'a> = RegApproxMatch<&'a str, Result<Cow<'a, str>>>;
-pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], (Cow<'a, [u8]>, usize, usize)>;
+pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], Match<'a>>;
 
 /// Regex params passed to approximate matching functions such as [`regaexec`]
 #[cfg(feature = "approx")]
@@ -177,45 +176,6 @@ impl<Data, Res> RegApproxMatch<Data, Res> {
 }
 
 impl TreRegex {
-    #[inline]
-    pub fn regaexec<'a>(
-        &self,
-        string: &'a str,
-        params: &RegApproxParams,
-        nmatches: usize,
-        flags: RegexecFlags,
-    ) -> Result<RegApproxMatchStr<'a>> {
-        let data = string.as_bytes();
-        let match_results = self.regaexec_bytes(data, params, nmatches, flags)?;
-
-        let mut result: Vec<Option<Result<Cow<'a, str>>>> = Vec::with_capacity(nmatches);
-        for pmatch in match_results.get_matches() {
-            let Some(pmatch) = pmatch else {
-                result.push(None);
-                continue;
-            };
-
-            #[allow(clippy::match_wildcard_for_single_variants)]
-            result.push(Some(match pmatch.0 {
-                Cow::Borrowed(pmatch) => match std::str::from_utf8(pmatch) {
-                    Ok(s) => Ok(s.into()),
-                    Err(e) => Err(RegexError::new(
-                        ErrorKind::Binding(BindingErrorCode::ENCODING),
-                        &format!("UTF-8 encoding error: {e}"),
-                    )),
-                },
-                // SAFETY: cannot get here, we only have borrowed values.
-                _ => unsafe { unreachable_unchecked() },
-            }));
-        }
-
-        Ok(RegApproxMatchStr::new(
-            string,
-            result,
-            *match_results.get_regamatch(),
-        ))
-    }
-
     pub fn regaexec_bytes<'a>(
         &self,
         data: &'a [u8],
@@ -254,7 +214,7 @@ impl TreRegex {
             return Err(self.regerror(result));
         }
 
-        let mut result: Vec<Option<(Cow<'a, [u8]>, usize, usize)>> = Vec::with_capacity(nmatches);
+        let mut result: Vec<Option<Match>> = Vec::with_capacity(nmatches);
         for pmatch in match_vec {
             if pmatch.rm_so < 0 || pmatch.rm_eo < 0 {
                 result.push(None);
@@ -267,32 +227,68 @@ impl TreRegex {
             #[allow(clippy::cast_sign_loss)]
             let end_offset = pmatch.rm_eo as usize;
 
-            result.push(Some((Cow::Borrowed(&data[start_offset..end_offset]), start_offset, end_offset)));
+            result.push(Some(Match {
+                haystack: data,
+                start: start_offset,
+                end: end_offset
+            }));
         }
 
         Ok(RegApproxMatchBytes::new(data, result, amatch))
     }
 }
 
-
-#[inline]
-pub fn regaexec<'a>(
-    compiled_reg: &Regex,
-    string: &'a str,
-    params: &RegApproxParams,
-    nmatches: usize,
-    flags: RegexecFlags,
-) -> Result<RegApproxMatchStr<'a>> {
-    compiled_reg.regaexec(string, params, nmatches, flags)
-}
-
 #[inline]
 pub fn regaexec_bytes<'a>(
-    compiled_reg: &Regex,
+    compiled_reg: &TreRegex,
     data: &'a [u8],
     params: &RegApproxParams,
     nmatches: usize,
     flags: RegexecFlags,
 ) -> Result<RegApproxMatchBytes<'a>> {
     compiled_reg.regaexec_bytes(data, params, nmatches, flags)
+}
+
+#[cfg(test)]
+use crate::RegcompFlags;
+
+#[test]
+fn test_regaexec_bytes() {
+    let regcomp_flags = RegcompFlags::new()
+        .add(RegcompFlags::EXTENDED)
+        .add(RegcompFlags::ICASE);
+    let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
+    let regaexec_params = RegApproxParams::new()
+        .cost_ins(1)
+        .cost_del(1)
+        .cost_subst(1)
+        .max_cost(2)
+        .max_del(2)
+        .max_ins(2)
+        .max_subst(2)
+        .max_err(2);
+
+    let compiled_reg = TreRegex::new_bytes(b"^(hello).*(world)$", regcomp_flags).expect("Regex::new");
+    let result = compiled_reg
+        .regaexec_bytes(
+            b"hullo warld",   // String to match against
+            &regaexec_params, // Matching parameters
+            3,                // Number of matches we want
+            regaexec_flags,   // Flags
+        )
+        .expect("regaexec");
+
+    let matched = result.get_matches();
+
+    let matched_0 = matched[0].as_ref();
+    assert!(matched_0.is_some());
+    assert_eq!(matched_0.unwrap().as_bytes(), b"hullo warld");
+
+    let matched_1 = matched[1].as_ref();
+    assert!(matched_1.is_some());
+    assert_eq!(matched_1.unwrap().as_bytes(), b"hullo");
+
+    let matched_2 = matched[2].as_ref();
+    assert!(matched_2.is_some());
+    assert_eq!(matched_2.unwrap().as_bytes(), b"warld");
 }

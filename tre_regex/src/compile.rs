@@ -2,7 +2,7 @@ use std::ffi::c_char;
 use std::mem;
 
 use crate::{
-    err::{regerror, Result},
+    errors::{regerror, Result},
     flags::RegcompFlags,
     tre, TreRegex,
 };
@@ -37,13 +37,31 @@ impl TreRegex {
     }
 }
 
+
 #[inline]
-pub fn regcomp(reg: &str, flags: RegcompFlags) -> Result<TreRegex> {
-    TreRegex::new(reg, flags)
+pub fn regcomp_bytes(reg: &[u8], flags: RegcompFlags) -> Result<TreRegex> {
+    TreRegex::new_bytes(reg, flags)
 }
 
+#[test]
+fn regcomp_bytes_works() {
+    assert!(
+        regcomp_bytes(
+            b"[A-Za-z0-9]*",
+            RegcompFlags::new().add(RegcompFlags::BASIC)
+        )
+        .is_ok(),
+        "regcomp"
+    );
 
-#[inline]
-pub fn regcomp_bytes(reg: &[u8], flags: RegcompFlags) -> Result<Regex> {
-    Regex::new_bytes(reg, flags)
+    assert!(
+        regcomp_bytes(
+            b"[[:alpha:]]*",
+            RegcompFlags::new()
+                .add(RegcompFlags::EXTENDED)
+                .add(RegcompFlags::ICASE)
+        )
+        .is_ok(),
+        "regcomp"
+    );
 }
