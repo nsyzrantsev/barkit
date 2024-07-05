@@ -3,10 +3,34 @@ use std::ffi::c_int;
 use crate::{
     errors::{BindingErrorCode, ErrorKind, RegexError, Result},
     flags::RegexecFlags,
-    tre, TreRegex, Match
+    tre, TreRegex
 };
 
-pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], Match<'a>>;
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct Match<'h> {
+    matched: &'h [u8],
+    start: usize,
+    end: usize,
+}
+
+impl<'h> Match<'h> {
+    #[inline]
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    #[inline]
+    pub fn end(&self) -> usize {
+        self.end
+    }
+
+    #[inline]
+    pub fn as_bytes(&self) -> &'h [u8] {
+        &self.matched
+    }
+}
+
+pub type FuzzyMatchBytes<'a> = FuzzyMatch<&'a [u8], Match<'a>>;
 
 /// Regex params passed to approximate matching functions such as [`regaexec`]
 #[cfg(feature = "approx")]
@@ -99,13 +123,6 @@ impl FuzzyRegexParams {
     pub const fn get(&self) -> &tre::regaparams_t {
         &self.0
     }
-
-    /// Get a mutable reference to the underlying [`regaparams_t`](tre_regex_sys::regaparams_t) object.
-    #[must_use]
-    #[inline]
-    pub fn get_mut(&mut self) -> &mut tre::regaparams_t {
-        &mut self.0
-    }
 }
 
 impl Default for FuzzyRegexParams {
@@ -114,22 +131,22 @@ impl Default for FuzzyRegexParams {
     }
 }
 
-/// This struct is returned by [`regaexec`] and friends.
+/// This struct is returned by [regaexec] and related functions.
 ///
-/// The match results from this function are very complex. See the [TRE documentation] for details
-/// on how this all works and corresponding fields, and what they mean.
+/// The match results from this function are quite complex. See the [TRE documentation] for details
+/// on how this works and the corresponding fields, and what they mean.
 ///
 /// This structure should never be instantiated outside the library.
 ///
-/// [TRE documentation]: <https://laurikari.net/tre/documentation/regaexec/>
+/// [TRE documentation]: https://laurikari.net/tre/documentation/regaexec/
 #[derive(Clone, Debug)]
-pub struct RegApproxMatch<Data, Res> {
+pub struct FuzzyMatch<Data, Res> {
     data: Data,
     matches: Vec<Option<Res>>,
     amatch: tre::regamatch_t,
 }
 
-impl<Data, Res> RegApproxMatch<Data, Res> {
+impl<Data, Res> FuzzyMatch<Data, Res> {
     pub(crate) fn new(data: Data, matches: Vec<Option<Res>>, amatch: tre::regamatch_t) -> Self {
         Self {
             data,
@@ -138,39 +155,19 @@ impl<Data, Res> RegApproxMatch<Data, Res> {
         }
     }
 
-    /// Gets the cost of the match
-    pub const fn cost(&self) -> c_int {
-        self.amatch.cost
-    }
-
-    /// Gets the number of insertions if the match
-    pub const fn num_ins(&self) -> c_int {
-        self.amatch.num_ins
-    }
-
-    /// Gets the number of deletions if the match
-    pub const fn num_del(&self) -> c_int {
-        self.amatch.num_del
-    }
-
     /// Get the number of substitutions in the match
-    pub const fn num_subst(&self) -> c_int {
+    pub const fn substitutions_number(&self) -> c_int {
         self.amatch.num_subst
     }
 
     /// Gets an immutable reference to the underlying data
-    pub const fn get_orig_data(&self) -> &Data {
+    pub const fn get_original_data(&self) -> &Data {
         &self.data
     }
 
     /// Gets the matches returned by this, as references to the data
     pub const fn get_matches(&self) -> &Vec<Option<Res>> {
         &self.matches
-    }
-
-    /// Gets a reference to the underlying [`regamatch_t`](tre_regex_sys::regamatch_t) object.
-    pub const fn get_regamatch(&self) -> &tre::regamatch_t {
-        &self.amatch
     }
 }
 
@@ -181,7 +178,7 @@ impl TreRegex {
         params: &FuzzyRegexParams,
         nmatches: usize,
         flags: RegexecFlags,
-    ) -> Result<RegApproxMatchBytes<'a>> {
+    ) -> Result<FuzzyMatchBytes<'a>> {
         let Some(compiled_reg_obj) = self.get() else {
             return Err(RegexError::new(
                 ErrorKind::Binding(BindingErrorCode::REGEX_VACANT),
@@ -227,13 +224,13 @@ impl TreRegex {
             let end_offset = pmatch.rm_eo as usize;
 
             result.push(Some(Match {
-                haystack: data,
+                matched: &data[start_offset..end_offset],
                 start: start_offset,
                 end: end_offset
             }));
         }
 
-        Ok(RegApproxMatchBytes::new(data, result, amatch))
+        Ok(FuzzyMatchBytes::new(data, result, amatch))
     }
 }
 
@@ -244,7 +241,7 @@ pub fn regaexec_bytes<'a>(
     params: &FuzzyRegexParams,
     nmatches: usize,
     flags: RegexecFlags,
-) -> Result<RegApproxMatchBytes<'a>> {
+) -> Result<FuzzyMatchBytes<'a>> {
     compiled_reg.regaexec_bytes(data, params, nmatches, flags)
 }
 

@@ -56,32 +56,3 @@ impl Drop for TreRegex {
         }
     }
 }
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct Match<'h> {
-    haystack: &'h [u8],
-    start: usize,
-    end: usize,
-}
-
-impl<'h> Match<'h> {
-    #[inline]
-    pub fn start(&self) -> usize {
-        self.start
-    }
-
-    #[inline]
-    pub fn end(&self) -> usize {
-        self.end
-    }
-
-    #[inline]
-    pub fn range(&self) -> core::ops::Range<usize> {
-        self.start..self.end
-    }
-
-    #[inline]
-    pub fn as_bytes(&self) -> &'h [u8] {
-        &self.haystack[self.range()]
-    }
-}

@@ -11,7 +11,7 @@ use flate2::Compression;
 use seq_io::fastq::Reader;
 use barcode::Barcode;
 
-use tre_regex::Match;
+use tre_regex::fuzzy::Match;
 
 pub fn run(
     read1: String, 
