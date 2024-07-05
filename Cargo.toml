@@ -8,18 +8,27 @@ edition = "2021"
 [workspace]
 members = ["fuzzy_regex", "extract"]
 
-[profile.release]
-opt-level = 3
-overflow-checks = true
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-strip = true
-rpath = false
-debug = false
-incremental = false
-target-cpu = "native"
-
 [dependencies]
 clap = { version = "4.5.4", features = ["env", "derive"] }
 extract = { path = "extract" }
+
+[profile.dev]
+opt-level = 0
+debug = true
+panic = "abort"
+
+[profile.test]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3
+debug = false
+panic = "unwind"
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.bench]
+opt-level = 3
+debug = false
