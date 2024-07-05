@@ -10,7 +10,7 @@ pub struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Pre-process molecular, cell and sample barcodes
+    /// Tool to parse molecular (UMI) barcodes from FASTQ file(s)
     #[clap(arg_required_else_help = true)]
     Extract {
         /// (gzipped) input forward FASTQ file
