@@ -39,6 +39,6 @@ pub enum Commands {
 
         /// max mismatch with pattern
         #[arg(short='m', long, default_value = "2")]
-        max_mismatch: Option<usize>,
+        max_mismatch: usize,
     },
 }

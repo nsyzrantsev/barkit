@@ -41,14 +41,9 @@ impl BarcodeMatcher {
         let read_seq = read.seq();
         let read_qual = read.qual();
 
-        let mut new_read_seq = [&read_seq[..start], &read_seq[end..]].concat();
-        let mut new_read_qual = [&read_qual[..start], &read_qual[end..]].concat();
-
-        let mut new_read_header = Self::move_to_the_header(barcode_type, read, start, end)?;
-
-        new_read_header.push(b'\n');
-        new_read_seq.push(b'\n');
-        new_read_qual.push(b'\n');
+        let new_read_seq = [&read_seq[..start], &read_seq[end..]].concat();
+        let new_read_qual = [&read_qual[..start], &read_qual[end..]].concat();
+        let new_read_header = Self::move_to_the_header(barcode_type, read, start, end)?;
         
         Ok((new_read_seq, new_read_qual, new_read_header))
     }
