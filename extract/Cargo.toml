@@ -20,4 +20,4 @@ flate2 = "1.0.30"
 regex = "1.10.4"
 seq_io = "0.3.2"
 thiserror = "1.0.61"
-tre-regex = { git = "https://github.com/nsyzrantsev/tre-regex" }
+tre_regex = { path = "../tre_regex" }

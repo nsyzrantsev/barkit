@@ -1,6 +1,6 @@
 use regex::{self, Regex};
-use tre_regex::{RegApproxParams, RegcompFlags, Regex as TreRegex, RegexecFlags};
-use std::{borrow::Cow, collections::HashMap, str};
+use tre_regex::{RegApproxParams, RegcompFlags, TreRegex, Match, RegexecFlags};
+use std::{collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord};
 
 use crate::errors::Error;
@@ -39,7 +39,7 @@ impl Barcode {
         })
     }
 
-    pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<(Cow<'a, [u8]>, usize, usize), Error> {
+    pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<Match<'a>, Error> {
         let read_seq = str::from_utf8(read.seq())?;
     
         let result = self.compiled_regex
@@ -57,9 +57,9 @@ impl Barcode {
         Ok(matched[capture_group_index].clone().unwrap())
     }
 
-    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: (std::borrow::Cow<[u8]>, usize, usize), read: &RefRecord) -> Result<(Vec::<u8>, Vec::<u8>, Vec::<u8>), Error> {
-        let start = matched_pattern.1;
-        let end = matched_pattern.2;
+    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<(Vec::<u8>, Vec::<u8>, Vec::<u8>), Error> {
+        let start = matched_pattern.start();
+        let end = matched_pattern.end();
 
         let read_seq = read.seq();
         let read_qual = read.qual();

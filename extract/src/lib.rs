@@ -11,7 +11,7 @@ use flate2::Compression;
 use seq_io::fastq::Reader;
 use barcode::Barcode;
 
-
+use tre_regex::Match;
 
 pub fn run(
     read1: String, 
@@ -36,7 +36,7 @@ pub fn run(
 
     while let Some(record) = reader.next() {
         let record = record.expect("Error reading record");
-        let caps: Result<(std::borrow::Cow<[u8]>, usize, usize), errors::Error> = barcode.match_read(&record);
+        let caps: Result<Match, errors::Error> = barcode.match_read(&record);
         match caps {
             Ok(capture) => {
                 let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", capture, &record).unwrap();
