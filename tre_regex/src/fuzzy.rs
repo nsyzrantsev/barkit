@@ -11,40 +11,40 @@ pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], Match<'a>>;
 /// Regex params passed to approximate matching functions such as [`regaexec`]
 #[cfg(feature = "approx")]
 #[derive(Copy, Clone, Debug)]
-pub struct RegApproxParams(tre::regaparams_t);
+pub struct FuzzyRegexParams(tre::regaparams_t);
 
-impl RegApproxParams {
-    /// Creates a new empty [`RegApproxParams`] object.
+impl FuzzyRegexParams {
+    /// Creates a new empty [`FuzzyRegexParams`] object.
     #[must_use]
     #[inline]
     pub fn new() -> Self {
         Self(tre::regaparams_t::default())
     }
 
-    /// Sets the [`cost_ins`](tre_regex_sys::regaparams_t::cost_ins) element.
+    /// Sets the [`cost_insertion`](tre_regex_sys::regaparams_t::cost_ins) element.
     #[must_use]
     #[inline]
-    pub const fn cost_ins(&self, cost_ins: c_int) -> Self {
-        let mut copy = *self;
-        copy.0.cost_ins = cost_ins;
+    pub const fn cost_insertion(&self, cost_insertion: c_int) -> Self {
+        let mut copy: FuzzyRegexParams = *self;
+        copy.0.cost_ins = cost_insertion;
         copy
     }
 
-    /// Sets the [`cost_del`](tre_regex_sys::regaparams_t::cost_del) element.
+    /// Sets the [`cost_deletion`](tre_regex_sys::regaparams_t::cost_del) element.
     #[must_use]
     #[inline]
-    pub const fn cost_del(&self, cost_del: c_int) -> Self {
+    pub const fn cost_deletion(&self, cost_deletion: c_int) -> Self {
         let mut copy = *self;
-        copy.0.cost_del = cost_del;
+        copy.0.cost_del = cost_deletion;
         copy
     }
 
-    /// Sets the [`cost_subst`](tre_regex_sys::regaparams_t::cost_subst) element.
+    /// Sets the [`cost_substitution`](tre_regex_sys::regaparams_t::cost_subst) element.
     #[must_use]
     #[inline]
-    pub const fn cost_subst(&self, cost_subst: c_int) -> Self {
+    pub const fn cost_substitution(&self, cost_substitution: c_int) -> Self {
         let mut copy = *self;
-        copy.0.cost_subst = cost_subst;
+        copy.0.cost_subst = cost_substitution;
         copy
     }
 
@@ -57,39 +57,39 @@ impl RegApproxParams {
         copy
     }
 
-    /// Sets the [`max_ins`](tre_regex_sys::regaparams_t::max_ins) element.
+    /// Sets the [`max_insertion`](tre_regex_sys::regaparams_t::max_ins) element.
     #[must_use]
     #[inline]
-    pub const fn max_ins(&self, max_ins: c_int) -> Self {
+    pub const fn max_insertion(&self, max_insertion: c_int) -> Self {
         let mut copy = *self;
-        copy.0.max_ins = max_ins;
+        copy.0.max_ins = max_insertion;
         copy
     }
 
-    /// Sets the [`max_del`](tre_regex_sys::regaparams_t::max_del) element.
+    /// Sets the [`max_deletion`](tre_regex_sys::regaparams_t::max_del) element.
     #[must_use]
     #[inline]
-    pub const fn max_del(&self, max_del: c_int) -> Self {
+    pub const fn max_deletion(&self, max_deletion: c_int) -> Self {
         let mut copy = *self;
-        copy.0.max_del = max_del;
+        copy.0.max_del = max_deletion;
         copy
     }
 
-    /// Sets the [`max_subst`](tre_regex_sys::regaparams_t::max_subst) element.
+    /// Sets the [`max_substitution`](tre_regex_sys::regaparams_t::max_subst) element.
     #[must_use]
     #[inline]
-    pub const fn max_subst(&self, max_subst: c_int) -> Self {
+    pub const fn max_substitution(&self, max_substitution: c_int) -> Self {
         let mut copy = *self;
-        copy.0.max_subst = max_subst;
+        copy.0.max_subst = max_substitution;
         copy
     }
 
-    /// Sets the [`max_err`](tre_regex_sys::regaparams_t::max_err) element.
+    /// Sets the [`max_error`](tre_regex_sys::regaparams_t::max_err) element.
     #[must_use]
     #[inline]
-    pub const fn max_err(&self, max_err: c_int) -> Self {
+    pub const fn max_error(&self, max_error: c_int) -> Self {
         let mut copy = *self;
-        copy.0.max_err = max_err;
+        copy.0.max_err = max_error;
         copy
     }
 
@@ -108,7 +108,7 @@ impl RegApproxParams {
     }
 }
 
-impl Default for RegApproxParams {
+impl Default for FuzzyRegexParams {
     fn default() -> Self {
         Self::new()
     }
@@ -178,7 +178,7 @@ impl TreRegex {
     pub fn regaexec_bytes<'a>(
         &self,
         data: &'a [u8],
-        params: &RegApproxParams,
+        params: &FuzzyRegexParams,
         nmatches: usize,
         flags: RegexecFlags,
     ) -> Result<RegApproxMatchBytes<'a>> {
@@ -241,7 +241,7 @@ impl TreRegex {
 pub fn regaexec_bytes<'a>(
     compiled_reg: &TreRegex,
     data: &'a [u8],
-    params: &RegApproxParams,
+    params: &FuzzyRegexParams,
     nmatches: usize,
     flags: RegexecFlags,
 ) -> Result<RegApproxMatchBytes<'a>> {
@@ -257,15 +257,15 @@ fn test_regaexec_bytes() {
         .add(RegcompFlags::EXTENDED)
         .add(RegcompFlags::ICASE);
     let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
-    let regaexec_params = RegApproxParams::new()
-        .cost_ins(1)
-        .cost_del(1)
-        .cost_subst(1)
+    let regaexec_params = FuzzyRegexParams::new()
+        .cost_insertion(1)
+        .cost_deletion(1)
+        .cost_substitution(1)
         .max_cost(2)
-        .max_del(2)
-        .max_ins(2)
-        .max_subst(2)
-        .max_err(2);
+        .max_deletion(2)
+        .max_insertion(2)
+        .max_substitution(2)
+        .max_error(2);
 
     let compiled_reg = TreRegex::new_bytes(b"^(hello).*(world)$", regcomp_flags).expect("Regex::new");
     let result = compiled_reg

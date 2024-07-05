@@ -1,5 +1,5 @@
 use regex::{self, Regex};
-use tre_regex::{fuzzy::RegApproxParams, flags::{RegcompFlags, RegexecFlags}, TreRegex, Match};
+use tre_regex::{fuzzy::FuzzyRegexParams, flags::{RegcompFlags, RegexecFlags}, TreRegex, Match};
 use std::{collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord};
 
@@ -9,7 +9,7 @@ pub struct Barcode {
     compiled_regex: TreRegex,
     caputure_groups: HashMap<String, usize>,
     regaexec_flags: RegexecFlags,
-    regaexec_params: RegApproxParams
+    regaexec_params: FuzzyRegexParams
 }
 
 impl Barcode {
@@ -21,15 +21,15 @@ impl Barcode {
             .add(RegcompFlags::ICASE);
         let compiled_regex = TreRegex::new_bytes(posix_pattern.as_bytes(), regcomp_flags).expect("Regex::new");
         let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
-        let regaexec_params = RegApproxParams::new()
-            .cost_ins(0)
-            .cost_del(0)
-            .cost_subst(1)
+        let regaexec_params = FuzzyRegexParams::new()
+            .cost_insertion(0)
+            .cost_deletion(0)
+            .cost_substitution(1)
             .max_cost(2)
-            .max_del(0)
-            .max_ins(0)
-            .max_subst(max_mismatch as i32)
-            .max_err(2);
+            .max_deletion(0)
+            .max_insertion(0)
+            .max_substitution(max_mismatch as i32)
+            .max_error(2);
 
         Ok(Self {
             compiled_regex,

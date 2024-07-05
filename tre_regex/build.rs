@@ -55,7 +55,7 @@ fn generate_bindgen(include_path: &str, out_path: &PathBuf) {
         Vec::new()
     };
 
-    let mut bindings = bindgen::Builder::default()
+    let bindings = bindgen::Builder::default()
         .clang_args(clang_args)
         .header(include_path)
         .derive_default(true)
@@ -65,18 +65,8 @@ fn generate_bindgen(include_path: &str, out_path: &PathBuf) {
         .allowlist_function("tre_.*")
         .allowlist_type("(reg.*_t|tre_.*)")
         .allowlist_var("REG_.*")
-        .blocklist_type("register_t");
-
-    if !cfg!(feature = "wchar") {
-        bindings = bindings.blocklist_function("tre_reg(a)?w(n)?(comp|exec)");
-    }
-
-    if !cfg!(feature = "approx") {
-        bindings = bindings
-            .blocklist_function("tre_rega(w)?(n)?exec")
-            .blocklist_type("rega(match|params)_t")
-            .blocklist_item("REG_APPROX_MATCHER");
-    }
+        .blocklist_type("register_t")
+        .blocklist_function("tre_reg(a)?w(n)?(comp|exec)");
 
     bindings.generate().expect("Unable to generate bindings")
         .write_to_file(out_path.join("bindings.rs"))
