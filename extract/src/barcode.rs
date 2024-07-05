@@ -14,7 +14,12 @@ impl Barcode {
     pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
         let caputure_groups = get_capture_group_indices(&pattern);
         let posix_pattern = remove_capture_groups(pattern);
-        let compiled_regex = FuzzyRegex::new(&posix_pattern, max_mismatch).expect("Regex::new");
+        let compiled_regex = FuzzyRegex::new(
+            &posix_pattern, 
+            max_mismatch,
+            0,
+            0
+        ).expect("Regex::new");
         Ok(Self {
             compiled_regex,
             caputure_groups,

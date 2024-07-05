@@ -178,17 +178,18 @@ pub struct FuzzyRegex {
 }
 
 impl FuzzyRegex {
-    pub fn new(reg: &str, max_substitution: usize, max_deletion: usize, max_insertion: usize, max_error: usize) -> Result<FuzzyRegex> {
+    pub fn new(reg: &str, max_substitution: usize, max_deletion: usize, max_insertion: usize) -> Result<FuzzyRegex> {
         let regaexec_flags = RegexecFlags::new().add(RegexecFlags::NONE);
+        let max_cost = (max_deletion + max_insertion + max_substitution) as i32;
         let regaexec_params = FuzzyRegexParams::new()
             .cost_insertion(1)
             .cost_deletion(1)
             .cost_substitution(1)
-            .max_cost(2)
+            .max_cost(max_cost)
             .max_deletion(max_deletion as i32)
             .max_insertion(max_insertion as i32)
             .max_substitution(max_substitution as i32)
-            .max_error(max_error as i32);
+            .max_error(max_cost);
         Ok(Self {
             compiled_regex: TreRegex::new_bytes(reg.as_bytes(), &[RegcompFlags::EXTENDED, RegcompFlags::ICASE])?,
             flags: regaexec_flags,
@@ -259,7 +260,7 @@ impl FuzzyRegex {
 
 #[test]
 fn test_regaexec_bytes() {
-    let compiled_reg = FuzzyRegex::new("^(hello).*(world)$", 2, 2, 2, 2).expect("Regex::new");
+    let compiled_reg = FuzzyRegex::new("^(hello).*(world)$", 2, 2, 2).expect("Regex::new");
     let result = compiled_reg
         .captures(
             b"hullo warld",
