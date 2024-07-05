@@ -7,5 +7,5 @@ pub enum Error {
     #[error("UTF-8 error: {0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
     #[error("RegexError")]
-    RegexError(#[from] tre_regex::RegexError),
+    RegexError(#[from] tre_regex::errors::RegexError),
 }

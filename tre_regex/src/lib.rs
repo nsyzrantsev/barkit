@@ -8,16 +8,10 @@ pub mod tre {
 }
 
 #[cfg(feature = "approx")]
-mod fuzzy;
-mod compile;
-mod errors;
-mod flags;
-
-#[cfg(feature = "approx")]
-pub use crate::fuzzy::*;
-pub use crate::compile::*;
-pub use crate::errors::*;
-pub use crate::flags::*;
+pub mod fuzzy;
+pub mod compile;
+pub mod errors;
+pub mod flags;
 
 #[derive(Debug)]
 pub struct TreRegex(Option<tre::regex_t>);

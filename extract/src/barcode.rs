@@ -1,5 +1,5 @@
 use regex::{self, Regex};
-use tre_regex::{RegApproxParams, RegcompFlags, TreRegex, Match, RegexecFlags};
+use tre_regex::{fuzzy::RegApproxParams, flags::{RegcompFlags, RegexecFlags}, TreRegex, Match};
 use std::{collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord};
 

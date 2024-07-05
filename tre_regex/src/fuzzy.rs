@@ -1,12 +1,11 @@
-use std::borrow::Cow;
 use std::ffi::c_int;
 
 use crate::{
     errors::{BindingErrorCode, ErrorKind, RegexError, Result},
-    tre, TreRegex, Match, RegexecFlags
+    flags::RegexecFlags,
+    tre, TreRegex, Match
 };
 
-pub type RegApproxMatchStr<'a> = RegApproxMatch<&'a str, Result<Cow<'a, str>>>;
 pub type RegApproxMatchBytes<'a> = RegApproxMatch<&'a [u8], Match<'a>>;
 
 /// Regex params passed to approximate matching functions such as [`regaexec`]
@@ -250,7 +249,7 @@ pub fn regaexec_bytes<'a>(
 }
 
 #[cfg(test)]
-use crate::RegcompFlags;
+use crate::flags::RegcompFlags;
 
 #[test]
 fn test_regaexec_bytes() {

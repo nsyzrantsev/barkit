@@ -118,7 +118,7 @@ pub fn regerror(compiled_reg: &TreRegex, result: ErrorInt) -> RegexError {
 }
 
 #[cfg(test)]
-use crate::{regcomp_bytes, RegcompFlags, RegexecFlags};
+use crate::{compile::regcomp_bytes, flags::{RegcompFlags, RegexecFlags}};
 
 #[test]
 fn regerror_works() {
