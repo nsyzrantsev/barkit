@@ -11,12 +11,12 @@ pub struct BarcodeMatcher {
 }
 
 impl BarcodeMatcher {
-    pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
+    pub fn new(pattern: &str, max_error: usize) -> Result<Self, Error> {
         let capture_groups = get_capture_group_indices(&pattern);
         let posix_pattern = remove_capture_groups(pattern);
         let regex = FuzzyRegex::new(
             &posix_pattern, 
-            max_mismatch,
+            max_error,
             0,
             0
         ).expect("Regex::new");
@@ -48,15 +48,27 @@ impl BarcodeMatcher {
         Ok((new_read_seq, new_read_qual, new_read_header))
     }
 
-    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec::<u8>, Error> {
-        let read_header = str::from_utf8(read.head())?;
+    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
+        // Convert head, seq, and qual to UTF-8 strings
+        let read_header = read.head();
         let read_seq = read.seq();
         let read_qual = read.qual();
-
-        let barcode_seq = str::from_utf8(&read_seq[start..end])?;
-        let barcode_qual = str::from_utf8(&read_qual[start..end])?;
-
-        Ok(format!("{} {}:{}:{}", read_header, barcode_type, barcode_seq, barcode_qual).as_bytes().to_vec())
+    
+        // Extract barcode_seq and barcode_qual
+        let barcode_seq = &read_seq[start..end];
+        let barcode_qual = &read_qual[start..end];
+    
+        // Construct the result directly as bytes
+        let mut result = Vec::with_capacity(read_header.len() + barcode_type.len() + barcode_seq.len() + barcode_qual.len() + 3);
+        result.extend_from_slice(read_header);
+        result.push(b' ');
+        result.extend_from_slice(barcode_type.as_bytes());
+        result.push(b':');
+        result.extend_from_slice(barcode_seq);
+        result.push(b':');
+        result.extend_from_slice(barcode_qual);
+    
+        Ok(result)
     }
 }
 

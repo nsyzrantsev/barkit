@@ -12,7 +12,7 @@ fn main() {
             out_read2,
             pattern1,
             pattern2,
-            max_mismatch,
+            max_error,
             max_memory
         } => {
             extract::run(
@@ -22,7 +22,7 @@ fn main() {
                 pattern2.clone(),
                 out_read1.to_string(),
                 out_read2.clone(),
-                max_mismatch.clone(),
+                max_error.clone(),
                 max_memory.clone()
             );
         }

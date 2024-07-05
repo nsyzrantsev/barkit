@@ -14,25 +14,25 @@ pub fn run(
     pattern2: Option<String>,
     out_read1: String, 
     out_read2: Option<String>,
-    max_mismatch: usize,
+    max_error: usize,
     max_memory: Option<usize>
 ) {
-    process_fastq(read1, pattern1, out_read1, max_mismatch, max_memory);
+    process_fastq(read1, pattern1, out_read1, max_error, max_memory);
 
-    let out_read2 = out_read2.unwrap_or_else(|| {
-        eprintln!("{}", errors::Error::OutputFastqFileNotProvided);
-        std::process::exit(1); // or handle the error appropriately
-    });
+    // let out_read2 = out_read2.unwrap_or_else(|| {
+    //     eprintln!("{}", errors::Error::OutputFastqFileNotProvided);
+    //     std::process::exit(1); // or handle the error appropriately
+    // });
 }
 
 fn process_fastq(
     read: String,
     pattern: String,
     out_read: String,
-    max_mismatch: usize,
+    max_error: usize,
     max_memory: Option<usize>
 ) {
-    let barcode = BarcodeMatcher::new(&pattern, max_mismatch).expect("REASON");
+    let barcode = BarcodeMatcher::new(&pattern, max_error).expect("REASON");
     
     let mut fastq_reader = fastq::get_fastq_reader(&read, max_memory);
     
