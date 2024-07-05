@@ -9,7 +9,7 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 
 use seq_io::fastq::Reader;
-use barcode::Barcode;
+use barcode::BarcodeMatcher;
 
 use tre_regex::fuzzy::Match;
 
@@ -27,7 +27,7 @@ pub fn run(
 
     let mut reader = Reader::new(fastq_buf);
 
-    let barcode = Barcode::new(&pattern1, max_mismatch.unwrap()).expect("REASON");
+    let barcode = BarcodeMatcher::new(&pattern1, max_mismatch.unwrap()).expect("REASON");
 
     let file = File::create(out_read1.clone().unwrap()).expect("Unable to create file");
     let encoder = GzEncoder::new(file, Compression::default());
@@ -39,7 +39,7 @@ pub fn run(
         let caps: Result<Match, errors::Error> = barcode.match_read(&record);
         match caps {
             Ok(capture) => {
-                let (read_seq, read_qual, read_header) = Barcode::cut_from_read_seq("UMI", capture, &record).unwrap();
+                let (read_seq, read_qual, read_header) = BarcodeMatcher::cut_from_read_seq("UMI", capture, &record).unwrap();
                 match out_read1 {
                     Some(_) => {
                         f.write_all(&read_header).expect("Unable to write read header");

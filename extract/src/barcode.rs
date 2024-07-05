@@ -5,37 +5,32 @@ use seq_io::fastq::{Record, RefRecord};
 
 use crate::errors::Error;
 
-pub struct Barcode {
-    compiled_regex: FuzzyRegex,
+pub struct BarcodeMatcher {
+    regex: FuzzyRegex,
     caputure_groups: HashMap<String, usize>
 }
 
-impl Barcode {
+impl BarcodeMatcher {
     pub fn new(pattern: &str, max_mismatch: usize) -> Result<Self, Error> {
         let caputure_groups = get_capture_group_indices(&pattern);
         let posix_pattern = remove_capture_groups(pattern);
-        let compiled_regex = FuzzyRegex::new(
+        let regex = FuzzyRegex::new(
             &posix_pattern, 
             max_mismatch,
             0,
             0
         ).expect("Regex::new");
         Ok(Self {
-            compiled_regex,
+            regex,
             caputure_groups,
         })
     }
 
     pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<Match<'a>, Error> {
-        let read_seq = str::from_utf8(read.seq())?;
-    
-        let result = self.compiled_regex
-            .captures(read_seq.as_bytes(),3)?;
-        
+        let read_seq = read.seq();
+        let result = self.regex.captures(read_seq,3)?;
         let matched = result.get_matches();
-
         let capture_group_index = self.caputure_groups["UMI"];
-
         Ok(matched[capture_group_index].clone().unwrap())
     }
 
