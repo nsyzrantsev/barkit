@@ -24,7 +24,7 @@ impl Pattern {
 
     pub fn clear(&self) -> Result<String, errors::Error> {
         let re = Regex::new(r"\?P<\w*>")?;
-        Ok(re.replace_all(&self.pattern, "").replace("/", ""))
+        Ok(re.replace_all(&self.pattern, "").replace("\\", ""))
     }
 
     pub fn to_string(&self) -> String {
