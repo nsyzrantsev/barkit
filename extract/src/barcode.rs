@@ -46,19 +46,12 @@ impl BarcodeMatcher {
 
     fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
         let read_header = read.head();
-        let read_seq = read.seq();
-        let read_qual = read.qual();
-    
-        let barcode_seq = &read_seq[start..end];
-        let barcode_qual = &read_qual[start..end];
+        let barcode_seq = &read.seq()[start..end];
+        let barcode_qual = &read.qual()[start..end];
     
         let mut result = Vec::with_capacity(read_header.len() + barcode_type.len() + barcode_seq.len() + barcode_qual.len() + 3);
         result.extend_from_slice(read_header);
-        result.push(b' ');
-        result.extend_from_slice(barcode_type.as_bytes());
-        result.push(b':');
-        result.extend_from_slice(barcode_seq);
-        result.push(b':');
+        result.extend_from_slice(format!(" {}:{}", barcode_type, std::str::from_utf8(barcode_seq)?).as_bytes());
         result.extend_from_slice(barcode_qual);
     
         Ok(result)
