@@ -6,7 +6,7 @@ use crate::{tre, TreRegex};
 
 // Public types
 pub type ErrorInt = c_int;
-pub type Result<T> = std::result::Result<T, RegexError>;
+pub type Result<T> = std::result::Result<T, TreRegexError>;
 
 /// Custom error type for errors in the binding itself.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -37,7 +37,7 @@ pub enum ErrorKind {
 
 /// Error type returned in results
 #[derive(Debug, PartialEq, Eq)]
-pub struct RegexError {
+pub struct TreRegexError {
     /// Kind of error
     pub kind: ErrorKind,
 
@@ -45,7 +45,7 @@ pub struct RegexError {
     pub error: String,
 }
 
-impl RegexError {
+impl TreRegexError {
     #[must_use]
     #[inline]
     pub fn new(kind: ErrorKind, error: &str) -> Self {
@@ -56,10 +56,10 @@ impl RegexError {
     }
 }
 
-impl std::error::Error for RegexError {}
+impl std::error::Error for TreRegexError {}
 
 // Quick and dirty display impl
-impl fmt::Display for RegexError {
+impl fmt::Display for TreRegexError {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} (code {:?})", self.error, self.kind)
@@ -68,10 +68,10 @@ impl fmt::Display for RegexError {
 
 impl TreRegex {
     #[must_use]
-    pub fn regerror(&self, result: ErrorInt) -> RegexError {
+    pub fn regerror(&self, result: ErrorInt) -> TreRegexError {
         // SAFETY: compiled_reg should be valid; see safety concerns for Regex.
         let Some(compiled_reg_obj) = self.get() else {
-            return RegexError::new(
+            return TreRegexError::new(
                 ErrorKind::Binding(BindingErrorCode::REGEX_VACANT),
                 "Attempted to unwrap a vacant Regex object",
             );
@@ -88,7 +88,7 @@ impl TreRegex {
             );
         }
         let errstr = CString::from_vec_with_nul(errbuf).map_err(|e| {
-            RegexError::new(
+            TreRegexError::new(
                 ErrorKind::Binding(BindingErrorCode::CSTRING),
                 &format!("Could not convert error buffer to C string: {e}"),
             )
@@ -97,7 +97,7 @@ impl TreRegex {
             return errstr.unwrap_err();
         };
         let errstr = errstr.to_str().map_err(|e| {
-            RegexError::new(
+            TreRegexError::new(
                 ErrorKind::Binding(BindingErrorCode::ENCODING),
                 &format!("Could not encode error string to UTF-8: {e}"),
             )
@@ -108,12 +108,12 @@ impl TreRegex {
 
         // Value cannot ever be negative.
         #[allow(clippy::cast_sign_loss)]
-        RegexError::new(ErrorKind::Tre(tre::reg_errcode_t(result as c_uint)), errstr)
+        TreRegexError::new(ErrorKind::Tre(tre::reg_errcode_t(result as c_uint)), errstr)
     }
 }
 
 #[must_use]
-pub fn regerror(compiled_reg: &TreRegex, result: ErrorInt) -> RegexError {
+pub fn regerror(compiled_reg: &TreRegex, result: ErrorInt) -> TreRegexError {
     compiled_reg.regerror(result)
 }
 

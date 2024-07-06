@@ -13,13 +13,13 @@ pub struct BarcodeExtractor {
 
 impl BarcodeExtractor {
     pub fn new(pattern: &str) -> Result<Self, Error> {
-        let pattern_escaped = Pattern::new(pattern);
-        let capture_groups = pattern_escaped.get_indices();
-        let posix_pattern = pattern_escaped.clear();
-        let regex = FuzzyRegex::new(&posix_pattern).expect("FuzzyRegex::new");
+        let escaped_pattern = Pattern::new(pattern);
+        let capture_groups = escaped_pattern.get_group_indices()?;
+        let posix_pattern = escaped_pattern.clear()?;
+        let regex = FuzzyRegex::new(&posix_pattern)?;
         Ok(Self {
             regex,
-            capture_groups,
+            capture_groups
         })
     }
 
@@ -28,7 +28,7 @@ impl BarcodeExtractor {
         let result = self.regex.captures(read_seq,3)?;
         let matched = result.get_matches();
         let capture_group_index = self.capture_groups["UMI"];
-        Ok(matched[capture_group_index].clone().unwrap())
+        Ok(matched[capture_group_index].ok_or(Error::CaptureGroupIndexError(capture_group_index))?)
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {

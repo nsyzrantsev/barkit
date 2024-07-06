@@ -1,5 +1,6 @@
 use regex::{self, Regex};
 use std::collections::HashMap;
+use crate::errors;
 
 pub struct Pattern {
     pattern: String,
@@ -13,17 +14,17 @@ impl Pattern {
         }
     }
 
-    pub fn get_indices(&self) -> HashMap<String, usize> {
-        let re = Regex::new(&self.pattern).unwrap();
-        re.capture_names()
+    pub fn get_group_indices(&self) -> Result<HashMap<String, usize>, errors::Error> {
+        let re = Regex::new(&self.pattern)?;
+        Ok(re.capture_names()
             .enumerate()
             .filter_map(|(i, name)| name.map(|name| (name.to_string(), i)))
-            .collect()
+            .collect())
     }
 
-    pub fn clear(&self) -> String {
-        let re = Regex::new(r"\?P<\w*>").unwrap();
-        re.replace_all(&self.pattern, "").replace("/", "")
+    pub fn clear(&self) -> Result<String, errors::Error> {
+        let re = Regex::new(r"\?P<\w*>")?;
+        Ok(re.replace_all(&self.pattern, "").replace("/", ""))
     }
 
     pub fn to_string(&self) -> String {

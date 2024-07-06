@@ -1,7 +1,7 @@
 use std::ffi::c_int;
 
 use crate::{
-    errors::{BindingErrorCode, ErrorKind, RegexError, Result},
+    errors::{BindingErrorCode, ErrorKind, TreRegexError, Result},
     flags::{RegexecFlags, RegcompFlags},
     tre, TreRegex
 };
@@ -194,7 +194,7 @@ impl FuzzyRegex {
         nmatches: usize,
     ) -> Result<FuzzyMatchBytes<'a>> {
         let Some(compiled_reg_obj) = self.compiled_regex.get() else {
-            return Err(RegexError::new(
+            return Err(TreRegexError::new(
                 ErrorKind::Binding(BindingErrorCode::REGEX_VACANT),
                 "Attempted to unwrap a vacant Regex object",
             ));

@@ -6,8 +6,12 @@ pub enum Error {
     Utf8Error(#[from] std::str::Utf8Error),
     #[error("UTF-8 error: {0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
-    #[error("RegexError")]
-    RegexError(#[from] fuzzy_regex::errors::RegexError),
+    #[error("TreRegexError")]
+    TreRegexError(#[from] fuzzy_regex::errors::TreRegexError),
     #[error("Output FASTQ file not provided")]
-    OutputFastqFileNotProvided
+    OutputFastqFileNotProvided,
+    #[error("RegexError")]
+    RegexError(#[from] regex::Error),
+    #[error("{0} capture group index does not exist.")]
+    CaptureGroupIndexError(usize)
 }
