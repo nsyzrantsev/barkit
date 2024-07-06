@@ -7,11 +7,11 @@ pub struct Pattern {
 }
 
 impl Pattern {
-    pub fn new(raw_pattern: &str) -> Self {
-        let escaped_pattern = escape_braces(raw_pattern);
-        Pattern {
+    pub fn new(raw_pattern: &str) -> Result<Self, errors::Error> {
+        let escaped_pattern = escape_braces(raw_pattern)?;
+        Ok(Pattern {
             pattern: escaped_pattern,
-        }
+        })
     }
 
     pub fn get_group_indices(&self) -> Result<HashMap<String, usize>, errors::Error> {
@@ -32,11 +32,14 @@ impl Pattern {
     }
 }
 
-fn escape_braces(raw_pattern: &str) -> String {
-    let re = Regex::new(r"\{[^{}]*[a-zA-Z<][^{}]*\}").unwrap();
-    re.replace_all(raw_pattern, |caps: &regex::Captures| {
-        caps[0].replace("{", "\\{").replace("}", "\\}")
-    }).to_string()
+fn escape_braces(raw_pattern: &str) -> Result<String, errors::Error> {
+    let re = Regex::new(r"\{[^{}]*[a-zA-Z<][^{}]*\}")?;
+    Ok(re.replace_all(
+        raw_pattern, 
+        |caps: &regex::Captures| {
+            caps[0].replace("{", "\\{").replace("}", "\\}")
+        }
+    ).to_string())
 }
 
 #[test]
@@ -49,6 +52,6 @@ fn test_pattern_new() {
     ];
 
     for &pattern in &patterns {
-        assert_eq!(Pattern::new(pattern).to_string(), pattern.to_string());
+        assert_eq!(Pattern::new(pattern).unwrap().to_string(), pattern.to_string());
     }
 }

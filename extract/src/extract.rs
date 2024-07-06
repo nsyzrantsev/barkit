@@ -13,7 +13,7 @@ pub struct BarcodeExtractor {
 
 impl BarcodeExtractor {
     pub fn new(pattern: &str) -> Result<Self, Error> {
-        let escaped_pattern = Pattern::new(pattern);
+        let escaped_pattern = Pattern::new(pattern)?;
         let capture_groups = escaped_pattern.get_group_indices()?;
         let posix_pattern = escaped_pattern.clear()?;
         let regex = FuzzyRegex::new(&posix_pattern)?;

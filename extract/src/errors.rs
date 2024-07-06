@@ -12,6 +12,6 @@ pub enum Error {
     OutputFastqFileNotProvided,
     #[error("RegexError")]
     RegexError(#[from] regex::Error),
-    #[error("{0} capture group index does not exist.")]
+    #[error("CaptureGroupIndexError: capture group assignment index is out of range.")]
     CaptureGroupIndexError(usize)
 }
