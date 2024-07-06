@@ -1,10 +1,11 @@
 mod fastq;
 mod errors;
-mod barcode;
+mod extract;
+mod pattern;
 
 use std::io::Write;
 
-use barcode::BarcodeMatcher;
+use extract::BarcodeExtractor;
 use seq_io::fastq::Record;
 
 
@@ -31,18 +32,18 @@ fn process_fastq(
     out_read: String,
     max_memory: Option<usize>
 ) {
-    let barcode = BarcodeMatcher::new(&pattern).expect("REASON");
+    let barcode = BarcodeExtractor::new(&pattern).expect("REASON");
     
-    let mut fastq_reader = fastq::get_fastq_reader(&read, max_memory);
+    let mut fastq_reader = fastq::get_reader(&read, max_memory);
     
-    let mut fastq_writer = fastq::get_fastq_writer(&out_read);
+    let mut fastq_writer = fastq::get_writer(&out_read);
 
     while let Some(record) = fastq_reader.next() {
         let record = record.expect("Error reading record");
         let caps = barcode.match_read(&record);
 
         if let Ok(capture) = caps {
-            let new_read = BarcodeMatcher::cut_from_read_seq("UMI", capture, &record).unwrap();
+            let new_read = BarcodeExtractor::cut_from_read_seq("UMI", capture, &record).unwrap();
             if let Err(e) = seq_io::fastq::write_to(
                 &mut fastq_writer, 
                 new_read.head(), 

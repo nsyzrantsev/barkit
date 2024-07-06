@@ -8,7 +8,7 @@ use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
 const WRITE_BUFFER_SIZE: usize = 8 * 1024 * 1024; // 8 MB buffer size, you can adjust this size as needed
 
-pub fn get_fastq_reader(fastq_path: &str, max_memory: Option<usize>) -> Reader<Box<dyn BufRead>> {
+pub fn get_reader(fastq_path: &str, max_memory: Option<usize>) -> Reader<Box<dyn BufRead>> {
     let path = Path::new(fastq_path);
     let file = File::open(&path).expect("couldn't open file");
 
@@ -44,7 +44,7 @@ pub fn get_fastq_reader(fastq_path: &str, max_memory: Option<usize>) -> Reader<B
     }
 }
 
-pub fn get_fastq_writer(file: &str) -> BufWriter<flate2::write::GzEncoder<File>>{
+pub fn get_writer(file: &str) -> BufWriter<flate2::write::GzEncoder<File>>{
     let file = File::create(file).expect("Unable to create file");
     let encoder = GzEncoder::new(file, Compression::default());
     BufWriter::with_capacity(WRITE_BUFFER_SIZE, encoder)

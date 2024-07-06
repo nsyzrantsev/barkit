@@ -1,16 +1,17 @@
-use regex::{self, Regex};
 use fuzzy_regex::fuzzy::{FuzzyRegex, Match};
+use crate::pattern::Pattern;
+
 use std::{collections::HashMap, str};
 use seq_io::fastq::{Record, RefRecord, OwnedRecord};
 
 use crate::errors::Error;
 
-pub struct BarcodeMatcher {
+pub struct BarcodeExtractor {
     regex: FuzzyRegex,
     capture_groups: HashMap<String, usize>
 }
 
-impl BarcodeMatcher {
+impl BarcodeExtractor {
     pub fn new(pattern: &str) -> Result<Self, Error> {
         let pattern_escaped = Pattern::new(pattern);
         let capture_groups = pattern_escaped.get_indices();
@@ -55,42 +56,5 @@ impl BarcodeMatcher {
         result.extend_from_slice(barcode_qual);
     
         Ok(result)
-    }
-}
-
-struct Pattern {
-    pattern: String
-}
-
-impl Pattern {
-    fn new(raw_pattern: &str) -> Self {
-        let re = Regex::new(r"\{[^{}]*[a-zA-Z<][^{}]*\}").unwrap();
-    
-        let result = re.replace_all(raw_pattern, |caps: &regex::Captures| {
-            let original = &caps[0];
-            let escaped = original.replace("{", "\\{").replace("}", "\\}");
-            escaped
-        });
-        Pattern {
-            pattern: result.to_string()
-        }
-    }
-
-    fn get_indices(&self) -> HashMap<String, usize> {
-        let re = Regex::new(&self.pattern).unwrap();
-        let mut capture_group_indices = HashMap::new();
-        
-        for (i, name) in re.capture_names().enumerate() {
-            if let Some(name) = name {
-                capture_group_indices.insert(name.to_string(), i);
-            }
-        }
-    
-        capture_group_indices
-    }
-
-    fn clear(&self) -> String {
-        let re = Regex::new(r"\?P<\w*>").unwrap();
-        re.replace(&self.pattern, "").replace("/", "")
     }
 }
