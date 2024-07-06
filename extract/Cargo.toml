@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive", "env"] }
-fancy-regex = "0.13.0"
 flate2 = "1.0.30"
 regex = "1.10.4"
 seq_io = "0.3.2"
