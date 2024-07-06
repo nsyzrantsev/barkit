@@ -6,6 +6,28 @@ use seq_io::fastq::{Record, RefRecord, OwnedRecord};
 
 use crate::errors::Error;
 
+const TRANSLATION_TABLE: [u8; 256] = {
+    let mut table = [b'A'; 256];
+
+    table[b'A' as usize] = b'T';
+    table[b'T' as usize] = b'A';
+    table[b'G' as usize] = b'C';
+    table[b'C' as usize] = b'G';
+    table[b'R' as usize] = b'A';
+    table[b'Y' as usize] = b'A';
+    table[b'S' as usize] = b'A';
+    table[b'W' as usize] = b'A';
+    table[b'K' as usize] = b'A';
+    table[b'M' as usize] = b'A';
+    table[b'B' as usize] = b'A';
+    table[b'D' as usize] = b'A';
+    table[b'H' as usize] = b'A';
+    table[b'V' as usize] = b'A';
+    table[b'N' as usize] = b'A';
+    
+    table
+};
+
 pub struct BarcodeExtractor {
     regex: FuzzyRegex,
     capture_groups: HashMap<String, usize>
@@ -29,6 +51,11 @@ impl BarcodeExtractor {
         let matched = result.get_matches();
         let capture_group_index = self.capture_groups["UMI"];
         Ok(matched[capture_group_index].ok_or(Error::CaptureGroupIndexError(capture_group_index))?)
+    }
+
+    pub fn match_reads<'a>(&self, read1: &'a RefRecord, read2: &'a RefRecord) {
+        let matched_read1 = self.match_read(read1);
+        let matched_read2 = self.match_read(read2);
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
@@ -57,4 +84,13 @@ impl BarcodeExtractor {
     
         Ok(result)
     }
+}
+
+
+fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
+    sequence
+        .iter()
+        .map(|&base| TRANSLATION_TABLE[base as usize])
+        .rev()
+        .collect()
 }

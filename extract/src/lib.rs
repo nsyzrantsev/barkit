@@ -18,7 +18,7 @@ pub fn run(
     out_read2: Option<String>,
     max_memory: Option<usize>
 ) {
-    process_fastq(read1, pattern1, out_read1, max_memory);
+    process_se_fastq(read1, pattern1, out_read1, max_memory);
 
     // let out_read2 = out_read2.unwrap_or_else(|| {
     //     eprintln!("{}", errors::Error::OutputFastqFileNotProvided);
@@ -26,7 +26,7 @@ pub fn run(
     // });
 }
 
-fn process_fastq(
+fn process_se_fastq(
     read: String,
     pattern: String,
     out_read: String,
