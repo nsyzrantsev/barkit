@@ -37,10 +37,6 @@ pub enum Commands {
         #[arg(short='P', long, requires = "pattern1")]
         pattern2: Option<String>,
 
-        /// max error (mismatch) size between pattern and read sequence
-        #[arg(short='e', long, default_value = "2")]
-        max_error: usize,
-
         /// max memory (RAM) usage in Megabyte (MB)
         #[arg(short='r', long)]
         max_memory: Option<usize>,
