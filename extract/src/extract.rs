@@ -45,17 +45,30 @@ impl BarcodeExtractor {
         })
     }
 
-    pub fn match_read<'a>(&self, read: &'a OwnedRecord) -> Result<Match<'a>, Error> {
-        let read_seq = read.seq();
-        let result = self.regex.captures(read_seq,3)?;
-        let matched = result.get_matches();
+    pub fn match_read<'a>(&self, read: &'a OwnedRecord) -> Result<Option<Match>, Error> {
+        let read_seq = read.seq().to_owned(); // Make read_seq an owned Vec<u8>
+        let (read_seq, fuzzy_match_obj) = match self.regex.captures(&read_seq, 3) {
+            Ok(fuzzy_match) => (read_seq, fuzzy_match),
+            Err(_) => {
+                let read_seq_rc = get_reverse_complement(&read_seq); // Reverse complement is a Vec<u8>
+                let fuzzy_match = self.regex.captures(&read_seq_rc, 3)?;
+                (read_seq_rc, fuzzy_match)
+            }
+        };
+    
+        let matches = fuzzy_match_obj.get_matches();
         let capture_group_index = self.capture_groups["UMI"];
-        Ok(matched[capture_group_index].ok_or(Error::CaptureGroupIndexError(capture_group_index))?)
+    
+        let result = matches
+            .get(capture_group_index)
+            .map_or(Err(Error::CaptureGroupIndexError(capture_group_index)), Ok)?;
+        
+        Ok(result.clone())
     }
 
     pub fn match_reads<'a>(&self, read1: &'a OwnedRecord, read2: &'a OwnedRecord) {
-        let matched_read1 = self.match_read(read1);
-        let matched_read2 = self.match_read(read2);
+        let mut matched_read1 = self.match_read(&read1);
+        let mut matched_read2 = self.match_read(read2);
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &OwnedRecord) -> Result<OwnedRecord, Error> {
@@ -88,9 +101,10 @@ impl BarcodeExtractor {
 
 
 fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
-    sequence
+    let sequence_rc: Vec<u8> = sequence
         .iter()
         .map(|&base| TRANSLATION_TABLE[base as usize])
         .rev()
-        .collect()
+        .collect();
+    sequence_rc[..].to_vec()
 }

@@ -6,14 +6,14 @@ use crate::{
     tre, TreRegex
 };
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct Match<'h> {
-    matched: &'h [u8],
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Match {
+    matched: Vec<u8>,
     start: usize,
     end: usize,
 }
 
-impl<'h> Match<'h> {
+impl Match {
     #[inline]
     pub fn start(&self) -> usize {
         self.start
@@ -25,12 +25,12 @@ impl<'h> Match<'h> {
     }
 
     #[inline]
-    pub fn as_bytes(&self) -> &'h [u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         &self.matched
     }
 }
 
-pub type FuzzyMatchBytes<'a> = FuzzyMatch<&'a [u8], Match<'a>>;
+pub type FuzzyMatchBytes = FuzzyMatch<Vec<u8>, Match>;
 
 /// Regex params passed to approximate matching functions such as [`regaexec`]
 #[cfg(feature = "approx")]
@@ -188,11 +188,11 @@ impl FuzzyRegex {
         })
     }
 
-    pub fn captures<'a>(
+    pub fn captures(
         &self,
-        data: &'a [u8],
+        data: &[u8],
         nmatches: usize,
-    ) -> Result<FuzzyMatchBytes<'a>, TreRegexError> {
+    ) -> Result<FuzzyMatchBytes, TreRegexError> {
         let Some(compiled_reg_obj) = self.compiled_regex.get() else {
             return Err(TreRegexError::new(
                 ErrorKind::Binding(BindingErrorCode::REGEX_VACANT),
@@ -238,13 +238,13 @@ impl FuzzyRegex {
             let end_offset = pmatch.rm_eo as usize;
 
             result.push(Some(Match {
-                matched: &data[start_offset..end_offset],
+                matched: data[start_offset..end_offset].to_vec(),
                 start: start_offset,
                 end: end_offset
             }));
         }
 
-        Ok(FuzzyMatchBytes::new(data, result, amatch))
+        Ok(FuzzyMatchBytes::new(data.to_vec(), result, amatch))
     }
 }
 

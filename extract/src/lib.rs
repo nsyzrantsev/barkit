@@ -47,7 +47,7 @@ fn process_se_fastq(
         let caps = barcode.match_read(&record);
 
         if let Ok(capture) = caps {
-            let new_read = BarcodeExtractor::cut_from_read_seq("UMI", capture, &record).unwrap();
+            let new_read = BarcodeExtractor::cut_from_read_seq("UMI", capture.unwrap(), &record).unwrap();
             let mut writer = fastq_writer.lock().unwrap();
             if let Err(e) = seq_io::fastq::write_to(
                 &mut *writer, 
