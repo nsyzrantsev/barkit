@@ -1,4 +1,4 @@
-use clap::{command, Parser, Subcommand};
+use clap::{command, ArgAction, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[clap(version)]
@@ -42,7 +42,7 @@ pub enum Commands {
         max_memory: Option<usize>,
 
         /// searches for both barcode pattern in reverse complement
-        #[arg(short='r', long)]
+        #[arg(short='r', long, action=ArgAction::SetTrue)]
         rc_barcodes: Option<bool>
     },
 }
