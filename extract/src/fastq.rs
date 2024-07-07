@@ -25,7 +25,7 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
     }
 }
 
-pub fn get_reader(fastq_path: &str, max_memory: Option<usize>) -> Result<Reader<Box<dyn BufRead>>, errors::Error> {
+pub fn create_reader(fastq_path: &str, max_memory: Option<usize>) -> Result<Reader<Box<dyn BufRead>>, errors::Error> {
     let path = Path::new(fastq_path);
     let file = File::open(&path).expect("couldn't open file");
 
@@ -58,7 +58,7 @@ pub fn get_reader(fastq_path: &str, max_memory: Option<usize>) -> Result<Reader<
     }
 }
 
-pub fn get_writer(file: &str) -> BufWriter<flate2::write::GzEncoder<File>>{
+pub fn create_writer(file: &str) -> BufWriter<flate2::write::GzEncoder<File>>{
     let file = File::create(file).expect("Unable to create file");
     let encoder = GzEncoder::new(file, Compression::default());
     BufWriter::with_capacity(WRITE_BUFFER_SIZE, encoder)

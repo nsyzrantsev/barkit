@@ -34,9 +34,9 @@ fn process_se_fastq(
 ) {
     let barcode = BarcodeExtractor::new(&pattern).expect("REASON");
     
-    let mut fastq_reader = fastq::get_reader(&read, max_memory).unwrap();
+    let mut fastq_reader = fastq::create_reader(&read, max_memory).unwrap();
     
-    let mut fastq_writer = fastq::get_writer(&out_read);
+    let mut fastq_writer = fastq::create_writer(&out_read);
 
     while let Some(record) = fastq_reader.next() {
         let record = record.expect("Error reading record");
