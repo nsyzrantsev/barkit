@@ -5,6 +5,9 @@ mod pattern;
 
 use std::io::Write;
 
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
+
 use extract::BarcodeExtractor;
 use seq_io::fastq::Record;
 
@@ -36,16 +39,18 @@ fn process_se_fastq(
     
     let mut fastq_reader = fastq::create_reader(&read, max_memory).unwrap();
     
-    let mut fastq_writer = fastq::create_writer(&out_read);
+    let fastq_writer = Arc::new(Mutex::new(fastq::create_writer(&out_read)));
 
-    while let Some(record) = fastq_reader.next() {
+    let records: Vec<_> = fastq_reader.records().collect();
+    records.into_par_iter().for_each(|record| {
         let record = record.expect("Error reading record");
         let caps = barcode.match_read(&record);
 
         if let Ok(capture) = caps {
             let new_read = BarcodeExtractor::cut_from_read_seq("UMI", capture, &record).unwrap();
+            let mut writer = fastq_writer.lock().unwrap();
             if let Err(e) = seq_io::fastq::write_to(
-                &mut fastq_writer, 
+                &mut *writer, 
                 new_read.head(), 
                 new_read.seq(), 
                 new_read.qual()
@@ -53,8 +58,9 @@ fn process_se_fastq(
                 eprintln!("Failed to write to output file: {}", e);
             }
         }
-    }
+    });
 
-    fastq_writer.flush().expect("Failed to flush buffer");
-    fastq_writer.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
+    let mut writer = Arc::try_unwrap(fastq_writer).expect("Lock still has multiple owners").into_inner().expect("Mutex cannot be locked");
+    writer.flush().expect("Failed to flush buffer");
+    writer.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
 }

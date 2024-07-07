@@ -45,7 +45,7 @@ impl BarcodeExtractor {
         })
     }
 
-    pub fn match_read<'a>(&self, read: &'a RefRecord) -> Result<Match<'a>, Error> {
+    pub fn match_read<'a>(&self, read: &'a OwnedRecord) -> Result<Match<'a>, Error> {
         let read_seq = read.seq();
         let result = self.regex.captures(read_seq,3)?;
         let matched = result.get_matches();
@@ -53,12 +53,12 @@ impl BarcodeExtractor {
         Ok(matched[capture_group_index].ok_or(Error::CaptureGroupIndexError(capture_group_index))?)
     }
 
-    pub fn match_reads<'a>(&self, read1: &'a RefRecord, read2: &'a RefRecord) {
+    pub fn match_reads<'a>(&self, read1: &'a OwnedRecord, read2: &'a OwnedRecord) {
         let matched_read1 = self.match_read(read1);
         let matched_read2 = self.match_read(read2);
     }
 
-    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
+    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &OwnedRecord) -> Result<OwnedRecord, Error> {
         let start = matched_pattern.start();
         let end = matched_pattern.end();
 
@@ -72,7 +72,7 @@ impl BarcodeExtractor {
         })
     }
 
-    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
+    fn move_to_the_header(barcode_type: &str, read: &OwnedRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
         let read_header = read.head();
         let barcode_seq = &read.seq()[start..end];
         let barcode_qual = &read.qual()[start..end];
