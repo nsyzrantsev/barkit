@@ -2,10 +2,11 @@ use fuzzy_regex::fuzzy::{FuzzyRegex, FuzzyMatch, Match};
 use crate::pattern::Pattern;
 
 use std::{collections::HashMap, str};
-use seq_io::fastq::{Record, RefRecord, OwnedRecord};
+use seq_io::fastq::{Record, OwnedRecord};
 
 use crate::errors::Error;
 
+/// https://www.bioinformatics.org/sms/iupac.html
 const TRANSLATION_TABLE: [u8; 256] = {
     let mut table = [b'A'; 256];
 
@@ -88,9 +89,9 @@ impl BarcodeParser {
         let read_qual = read.qual();
         
         Ok(OwnedRecord {
-            head: [&read_seq[..start], &read_seq[end..]].concat(),
-            seq: [&read_qual[..start], &read_qual[end..]].concat(),
-            qual: Self::move_to_the_header(barcode_type, read, start, end)?
+            head: Self::move_to_the_header(barcode_type, read, start, end)?,
+            seq: [&read_seq[..start], &read_seq[end..]].concat(),
+            qual: [&read_qual[..start], &read_qual[end..]].concat(),
         })
     }
 
@@ -101,7 +102,7 @@ impl BarcodeParser {
     
         let mut result = Vec::with_capacity(read_header.len() + barcode_type.len() + barcode_seq.len() + barcode_qual.len() + 3);
         result.extend_from_slice(read_header);
-        result.extend_from_slice(format!(" {}:{}", barcode_type, std::str::from_utf8(barcode_seq)?).as_bytes());
+        result.extend_from_slice(format!(" {}:{}:", barcode_type, std::str::from_utf8(barcode_seq)?).as_bytes());
         result.extend_from_slice(barcode_qual);
     
         Ok(result)
@@ -116,4 +117,14 @@ fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
         .rev()
         .collect();
     sequence_rc[..].to_vec()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::extract::get_reverse_complement;
+    #[test]
+    fn test_get_reverse_complement() {
+        assert_eq!(get_reverse_complement(b"AAATTTGGGCCC"), b"GGGCCCAAATTT");
+        assert_eq!(get_reverse_complement(b"ATGCN"), b"AGCAT");
+    }
 }
