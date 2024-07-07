@@ -28,13 +28,13 @@ const TRANSLATION_TABLE: [u8; 256] = {
     table
 };
 
-pub struct BarcodeExtractor {
+pub struct BarcodeParser {
     regex: FuzzyRegex,
     capture_groups: HashMap<String, usize>,
     rc_barcodes: bool
 }
 
-impl BarcodeExtractor {
+impl BarcodeParser {
     pub fn new(pattern: &str, rc_barcodes: &Option<bool>) -> Result<Self, Error> {
         let escaped_pattern = Pattern::new(pattern)?;
         let capture_groups = escaped_pattern.get_group_indices()?;

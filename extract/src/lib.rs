@@ -8,7 +8,7 @@ use std::io::Write;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 
-use extract::BarcodeExtractor;
+use extract::BarcodeParser;
 use seq_io::fastq::Record;
 
 
@@ -37,7 +37,7 @@ fn process_se_fastq(
     max_memory: Option<usize>,
     rc_barcodes: Option<bool>
 ) {
-    let barcode = BarcodeExtractor::new(&pattern, &rc_barcodes).expect("REASON");
+    let barcode = BarcodeParser::new(&pattern, &rc_barcodes).expect("REASON");
     
     let mut fastq_reader = fastq::create_reader(&read, max_memory).unwrap();
     
@@ -49,7 +49,7 @@ fn process_se_fastq(
         let caps = barcode.search_in_read(&record);
 
         if let Ok(capture) = caps {
-            let new_read = BarcodeExtractor::cut_from_read_seq("UMI", capture.unwrap(), &record).unwrap();
+            let new_read = BarcodeParser::cut_from_read_seq("UMI", capture.unwrap(), &record).unwrap();
             let mut writer = fastq_writer.lock().unwrap();
             if let Err(e) = seq_io::fastq::write_to(
                 &mut *writer, 
