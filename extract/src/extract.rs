@@ -1,4 +1,4 @@
-use fuzzy_regex::fuzzy::{FuzzyRegex, Match};
+use fuzzy_regex::fuzzy::{FuzzyRegex, FuzzyMatch, Match};
 use crate::pattern::Pattern;
 
 use std::{collections::HashMap, str};
@@ -30,33 +30,42 @@ const TRANSLATION_TABLE: [u8; 256] = {
 
 pub struct BarcodeExtractor {
     regex: FuzzyRegex,
-    capture_groups: HashMap<String, usize>
+    capture_groups: HashMap<String, usize>,
+    rc_barcodes: bool
 }
 
 impl BarcodeExtractor {
-    pub fn new(pattern: &str) -> Result<Self, Error> {
+    pub fn new(pattern: &str, rc_barcodes: &Option<bool>) -> Result<Self, Error> {
         let escaped_pattern = Pattern::new(pattern)?;
         let capture_groups = escaped_pattern.get_group_indices()?;
         let posix_pattern = escaped_pattern.clear()?;
         let regex = FuzzyRegex::new(&posix_pattern)?;
         Ok(Self {
             regex,
-            capture_groups
+            capture_groups,
+            rc_barcodes: rc_barcodes.unwrap_or(false)
         })
     }
 
-    pub fn match_read<'a>(&self, read: &'a OwnedRecord) -> Result<Option<Match>, Error> {
-        let read_seq = read.seq().to_owned(); // Make read_seq an owned Vec<u8>
-        let (read_seq, fuzzy_match_obj) = match self.regex.captures(&read_seq, 3) {
-            Ok(fuzzy_match) => (read_seq, fuzzy_match),
-            Err(_) => {
-                let read_seq_rc = get_reverse_complement(&read_seq); // Reverse complement is a Vec<u8>
-                let fuzzy_match = self.regex.captures(&read_seq_rc, 3)?;
-                (read_seq_rc, fuzzy_match)
+    fn capture_barcodes(&self, read_seq: &[u8]) -> Result<FuzzyMatch<Vec<u8>, Match>, Error> {
+        let capture = self.regex.captures(&read_seq, 3);
+        if self.rc_barcodes {
+            return match capture {
+                Ok(fuzzy_match) => Ok(fuzzy_match),
+                Err(_) => {
+                    let read_seq_rc = get_reverse_complement(&read_seq);
+                    Ok(self.regex.captures(&read_seq_rc, 3)?)
+                }
             }
-        };
+        }
+        Ok(capture?)
+    }
+
+    pub fn search_in_read(&self, read: &OwnedRecord) -> Result<Option<Match>, Error> {
+        let read_seq = read.seq();
+        let captures = self.capture_barcodes(read_seq)?;
     
-        let matches = fuzzy_match_obj.get_matches();
+        let matches = captures.get_matches();
         let capture_group_index = self.capture_groups["UMI"];
     
         let result = matches
@@ -66,9 +75,9 @@ impl BarcodeExtractor {
         Ok(result.clone())
     }
 
-    pub fn match_reads<'a>(&self, read1: &'a OwnedRecord, read2: &'a OwnedRecord) {
-        let mut matched_read1 = self.match_read(&read1);
-        let mut matched_read2 = self.match_read(read2);
+    pub fn search_in_reads(&self, read1: &OwnedRecord, read2: &OwnedRecord) {
+        let mut matched_read1 = self.search_in_read(&read1);
+        let mut matched_read2 = self.search_in_read(read2);
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &OwnedRecord) -> Result<OwnedRecord, Error> {

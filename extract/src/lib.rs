@@ -19,9 +19,10 @@ pub fn run(
     pattern2: Option<String>,
     out_read1: String, 
     out_read2: Option<String>,
-    max_memory: Option<usize>
+    max_memory: Option<usize>,
+    rc_barcodes: Option<bool>
 ) {
-    process_se_fastq(read1, pattern1, out_read1, max_memory);
+    process_se_fastq(read1, pattern1, out_read1, max_memory, rc_barcodes);
 
     // let out_read2 = out_read2.unwrap_or_else(|| {
     //     eprintln!("{}", errors::Error::OutputFastqFileNotProvided);
@@ -33,9 +34,10 @@ fn process_se_fastq(
     read: String,
     pattern: String,
     out_read: String,
-    max_memory: Option<usize>
+    max_memory: Option<usize>,
+    rc_barcodes: Option<bool>
 ) {
-    let barcode = BarcodeExtractor::new(&pattern).expect("REASON");
+    let barcode = BarcodeExtractor::new(&pattern, &rc_barcodes).expect("REASON");
     
     let mut fastq_reader = fastq::create_reader(&read, max_memory).unwrap();
     
@@ -44,7 +46,7 @@ fn process_se_fastq(
     let records: Vec<_> = fastq_reader.records().collect();
     records.into_par_iter().for_each(|record| {
         let record = record.expect("Error reading record");
-        let caps = barcode.match_read(&record);
+        let caps = barcode.search_in_read(&record);
 
         if let Ok(capture) = caps {
             let new_read = BarcodeExtractor::cut_from_read_seq("UMI", capture.unwrap(), &record).unwrap();

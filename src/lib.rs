@@ -38,7 +38,11 @@ pub enum Commands {
         pattern2: Option<String>,
 
         /// max memory (RAM) usage in megabytes (MB)
-        #[arg(short='r', long)]
+        #[arg(short='m', long)]
         max_memory: Option<usize>,
+
+        /// searches for both barcode pattern in reverse complement
+        #[arg(short='r', long)]
+        rc_barcodes: Option<bool>
     },
 }
