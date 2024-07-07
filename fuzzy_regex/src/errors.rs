@@ -6,7 +6,6 @@ use crate::{tre, TreRegex};
 
 // Public types
 pub type ErrorInt = c_int;
-pub type Result<T> = std::result::Result<T, TreRegexError>;
 
 /// Custom error type for errors in the binding itself.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,7 +1,7 @@
 use std::ffi::c_int;
 
 use crate::{
-    errors::{BindingErrorCode, ErrorKind, TreRegexError, Result},
+    errors::{BindingErrorCode, ErrorKind, TreRegexError},
     flags::{RegexecFlags, RegcompFlags},
     tre, TreRegex
 };
@@ -177,7 +177,7 @@ pub struct FuzzyRegex {
 }
 
 impl FuzzyRegex {
-    pub fn new(reg: &str) -> Result<FuzzyRegex> {
+    pub fn new(reg: &str) -> Result<FuzzyRegex, TreRegexError> {
         let regaexec_flags = RegexecFlags::new().add(RegexecFlags::APPROX_MATCHER);
         Ok(Self {
             compiled_regex: TreRegex::new_bytes(
@@ -192,7 +192,7 @@ impl FuzzyRegex {
         &self,
         data: &'a [u8],
         nmatches: usize,
-    ) -> Result<FuzzyMatchBytes<'a>> {
+    ) -> Result<FuzzyMatchBytes<'a>, TreRegexError> {
         let Some(compiled_reg_obj) = self.compiled_regex.get() else {
             return Err(TreRegexError::new(
                 ErrorKind::Binding(BindingErrorCode::REGEX_VACANT),

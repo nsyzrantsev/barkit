@@ -2,13 +2,13 @@ use std::ffi::c_char;
 use std::mem;
 
 use crate::{
-    errors::{regerror, Result},
+    errors::{regerror, TreRegexError},
     flags::{RegcompFlags, RegFlags},
     tre, TreRegex,
 };
 
 impl TreRegex {
-    pub fn new_bytes(reg: &[u8], flags: &[RegFlags]) -> Result<Self> {
+    pub fn new_bytes(reg: &[u8], flags: &[RegFlags]) -> Result<Self, TreRegexError> {
         let mut regcomp_flags = RegcompFlags::new();
         for flag in flags.iter() {
             regcomp_flags = regcomp_flags.add(*flag);
@@ -40,7 +40,7 @@ impl TreRegex {
 
 
 #[inline]
-pub fn regcomp_bytes(reg: &[u8], flags: &[RegFlags]) -> Result<TreRegex> {
+pub fn regcomp_bytes(reg: &[u8], flags: &[RegFlags]) -> Result<TreRegex, TreRegexError> {
     TreRegex::new_bytes(reg, flags)
 }
 
