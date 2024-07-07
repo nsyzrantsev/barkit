@@ -6,6 +6,8 @@ use seq_io::fastq::{Record, OwnedRecord};
 
 use crate::errors::Error;
 
+use std::fmt;
+
 /// https://www.bioinformatics.org/sms/iupac.html
 const TRANSLATION_TABLE: [u8; 256] = {
     let mut table = [b'A'; 256];
@@ -28,6 +30,18 @@ const TRANSLATION_TABLE: [u8; 256] = {
     
     table
 };
+
+enum BarcodeType {
+    UMI
+}
+
+impl BarcodeType {
+    fn to_string(&self) -> String {
+        match *self {
+            BarcodeType::UMI => "UMI".to_string(),
+        }
+    }
+}
 
 pub struct BarcodeParser {
     regex: FuzzyRegex,
@@ -62,23 +76,21 @@ impl BarcodeParser {
         Ok(capture?)
     }
 
-    pub fn search_in_read(&self, read: &OwnedRecord) -> Result<Option<Match>, Error> {
+    pub fn search_in_single_read(&self, read: &OwnedRecord) -> Result<Option<Match>, Error> {
         let read_seq = read.seq();
         let captures = self.capture_barcodes(read_seq)?;
     
         let matches = captures.get_matches();
-        let capture_group_index = self.capture_groups["UMI"];
+
+        let capture_group_index = *self.capture_groups.get(&BarcodeType::UMI.to_string()).map_or(
+            Err(Error::UnexpectedCaptureGroupName(BarcodeType::UMI.to_string())), Ok
+        )?;
     
         let result = matches
             .get(capture_group_index)
             .map_or(Err(Error::CaptureGroupIndexError(capture_group_index)), Ok)?;
         
         Ok(result.clone())
-    }
-
-    pub fn search_in_reads(&self, read1: &OwnedRecord, read2: &OwnedRecord) {
-        let mut matched_read1 = self.search_in_read(&read1);
-        let mut matched_read2 = self.search_in_read(read2);
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &OwnedRecord) -> Result<OwnedRecord, Error> {
@@ -117,6 +129,19 @@ fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
         .rev()
         .collect();
     sequence_rc[..].to_vec()
+}
+
+pub fn replace_reads(
+    read1: &OwnedRecord, 
+    read2: &OwnedRecord, 
+    read1_match: &Option<&Match>,
+    read2_match: &Option<&Match>
+) -> Result<(OwnedRecord, OwnedRecord), Error> {        
+    match (read1_match, read2_match) {
+        (Some(_), _) => Ok((read1.clone(), read2.clone())),
+        (None, Some(_)) => Ok((read2.clone(), read1.clone())),
+        _ => Err(Error::BothReadsNotMatch),
+    }
 }
 
 #[cfg(test)]

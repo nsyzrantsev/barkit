@@ -25,7 +25,7 @@ impl BindingErrorCode {
 /// Type of error: `Binding` (see [`BindingErrorCode`]), or `Tre`
 ///
 /// See the TRE documentation for more information on valid error codes for `Tre`.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
     /// Binding-specific error
     Binding(BindingErrorCode),
@@ -35,7 +35,7 @@ pub enum ErrorKind {
 }
 
 /// Error type returned in results
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TreRegexError {
     /// Kind of error
     pub kind: ErrorKind,
