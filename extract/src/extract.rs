@@ -6,8 +6,6 @@ use seq_io::fastq::{Record, OwnedRecord};
 
 use crate::errors::Error;
 
-use std::fmt;
-
 /// https://www.bioinformatics.org/sms/iupac.html
 const TRANSLATION_TABLE: [u8; 256] = {
     let mut table = [b'A'; 256];
@@ -16,17 +14,17 @@ const TRANSLATION_TABLE: [u8; 256] = {
     table[b'T' as usize] = b'A';
     table[b'G' as usize] = b'C';
     table[b'C' as usize] = b'G';
-    table[b'R' as usize] = b'A';
-    table[b'Y' as usize] = b'A';
-    table[b'S' as usize] = b'A';
-    table[b'W' as usize] = b'A';
-    table[b'K' as usize] = b'A';
-    table[b'M' as usize] = b'A';
-    table[b'B' as usize] = b'A';
-    table[b'D' as usize] = b'A';
-    table[b'H' as usize] = b'A';
-    table[b'V' as usize] = b'A';
-    table[b'N' as usize] = b'A';
+    table[b'R' as usize] = b'R';
+    table[b'Y' as usize] = b'Y';
+    table[b'S' as usize] = b'S';
+    table[b'W' as usize] = b'W';
+    table[b'K' as usize] = b'K';
+    table[b'M' as usize] = b'M';
+    table[b'B' as usize] = b'B';
+    table[b'D' as usize] = b'D';
+    table[b'H' as usize] = b'H';
+    table[b'V' as usize] = b'V';
+    table[b'N' as usize] = b'N';
     
     table
 };
@@ -146,10 +144,18 @@ pub fn replace_reads(
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use crate::extract::get_reverse_complement;
-    #[test]
-    fn test_get_reverse_complement() {
-        assert_eq!(get_reverse_complement(b"AAATTTGGGCCC"), b"GGGCCCAAATTT");
-        assert_eq!(get_reverse_complement(b"ATGCN"), b"AGCAT");
+
+    #[rstest]
+    #[case(b"", b"")]
+    #[case(b"GGGCCCAAATTT", b"AAATTTGGGCCC")]
+    #[case(b"ATGCN", b"NGCAT")]
+    #[case(b"AAP", b"ATT")]
+    #[case(b"CCX", b"AGG")]
+    #[case(b"PPP", b"AAA")]
+    fn test_get_reverse_complement(#[case] sequence: &[u8], #[case] rc_sequence: &[u8]) {
+        assert_eq!(get_reverse_complement(sequence), rc_sequence);
     }
 }
