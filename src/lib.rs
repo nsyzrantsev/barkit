@@ -37,7 +37,7 @@ pub enum Commands {
         #[arg(short='P', long, requires = "pattern1")]
         pattern2: Option<String>,
 
-        /// max memory (RAM) usage in Megabyte (MB)
+        /// max memory (RAM) usage in megabytes (MB)
         #[arg(short='r', long)]
         max_memory: Option<usize>,
     },

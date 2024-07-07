@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum Error {
     #[error("UTF-8 error: {0}")]
     Utf8Error(#[from] std::str::Utf8Error),
@@ -13,5 +13,7 @@ pub enum Error {
     #[error("RegexError")]
     RegexError(#[from] regex::Error),
     #[error("CaptureGroupIndexError: capture group assignment index is out of range.")]
-    CaptureGroupIndexError(usize)
+    CaptureGroupIndexError(usize),
+    #[error("Failed to read a file")]
+    FileReadError(#[from] std::io::Error)
 }
