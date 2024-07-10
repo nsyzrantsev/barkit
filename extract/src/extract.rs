@@ -2,7 +2,7 @@ use fuzzy_regex::fuzzy::{FuzzyRegex, FuzzyMatch, Match};
 use crate::pattern::Pattern;
 
 use std::{collections::HashMap, str};
-use seq_io::fastq::{Record, OwnedRecord};
+use seq_io::fastq::{OwnedRecord, Record, RefRecord};
 
 use crate::errors::Error;
 
@@ -74,7 +74,7 @@ impl BarcodeParser {
         Ok(capture?)
     }
 
-    pub fn search_in_single_read(&self, read: &OwnedRecord) -> Result<Option<Match>, Error> {
+    pub fn search_in_single_read(&self, read: &RefRecord) -> Result<Option<Match>, Error> {
         let read_seq = read.seq();
         let captures = self.capture_barcodes(read_seq)?;
     
@@ -91,7 +91,7 @@ impl BarcodeParser {
         Ok(result.clone())
     }
 
-    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &OwnedRecord) -> Result<OwnedRecord, Error> {
+    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
         let start = matched_pattern.start();
         let end = matched_pattern.end();
 
@@ -105,7 +105,7 @@ impl BarcodeParser {
         })
     }
 
-    fn move_to_the_header(barcode_type: &str, read: &OwnedRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
+    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
         let read_header = read.head();
         let barcode_seq = &read.seq()[start..end];
         let barcode_qual = &read.qual()[start..end];

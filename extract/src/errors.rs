@@ -20,6 +20,8 @@ pub enum Error {
     TreRegexError(#[from] fuzzy_regex::errors::TreRegexError),
     #[error("Failed to read a file: {0}")]
     FileReadError(#[from] std::io::Error),
+    #[error("Unexprected error type")]
+    UnexpectedErrorType
 }
 
 impl Clone for Error {
@@ -34,6 +36,7 @@ impl Clone for Error {
             Error::BothReadsNotMatch => Error::BothReadsNotMatch,
             Error::TreRegexError(err) => Error::TreRegexError(err.to_owned().clone()),
             Error::FileReadError(err) => Error::FileReadError(err.kind().clone().into()),
+            Error::UnexpectedErrorType => Error::UnexpectedErrorType
         }
     }
 }
