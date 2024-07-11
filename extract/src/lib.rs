@@ -16,19 +16,19 @@ use seq_io::fastq::Record;
 pub fn run(
     read1: String, 
     read2: Option<String>, 
-    pattern1: String,
+    pattern1: Option<String>,
     pattern2: Option<String>,
     out_read1: String, 
     out_read2: Option<String>,
     max_memory: Option<usize>,
     rc_barcodes: Option<bool>
 ) {
-    match (read2, pattern2, out_read2) {
-        (Some(read2), Some(pattern2), Some(out_read2)) => process_pe_fastq(read1, read2, pattern1, pattern2, out_read1, out_read2, max_memory, rc_barcodes),
-        (None, _, _) => process_se_fastq(read1, pattern1, out_read1, max_memory, rc_barcodes),
-        (Some(_), None, _) => todo!(),
-        (Some(_), Some(_), None) => todo!()
-    };
+    match (pattern1, pattern2) {
+        (Some(pattern1), Some(pattern2)) => process_pe_fastq(read1, read2.unwrap(), pattern1, pattern2, out_read1, out_read2.unwrap(), max_memory, rc_barcodes),
+        (Some(pattern1), None) => process_se_fastq(read1, pattern1, out_read1, max_memory, rc_barcodes),
+        (None, Some(pattern2)) => process_se_fastq(read2.unwrap(), pattern2, out_read2.unwrap(), max_memory, rc_barcodes),
+        (None, None) => todo!(),
+    }
 }
 
 fn process_se_fastq(

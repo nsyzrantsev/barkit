@@ -31,7 +31,7 @@ pub enum Commands {
 
         /// barcode pattern of forward reads
         #[arg(short='p', long)]
-        pattern1: String,
+        pattern1: Option<String>,
 
         /// barcode pattern of reverse reads
         #[arg(short='P', long, requires = "pattern1")]
