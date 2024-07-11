@@ -4,8 +4,7 @@ mod extract;
 mod pattern;
 
 use std::io::Write;
-use seq_io::{fastq::RecordSet, parallel::read_parallel};
-use seq_io::fastq::Reader;
+use seq_io::fastq::RecordSet;
 
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -79,56 +78,46 @@ fn process_pe_fastq(
     let barcode1 = BarcodeParser::new(&pattern1, &rc_barcodes).expect("REASON");
     let barcode2 = BarcodeParser::new(&pattern2.unwrap(), &rc_barcodes).expect("REASON");
     
-    let mut fastq1_reader = reader::create_reader(&read1, max_memory).unwrap();
+    let mut fastq1_reader = reader::FastqBufReader::new(&read1, max_memory).unwrap();
     let fastq1_writer = Arc::new(Mutex::new(reader::create_writer(&out_read1)));
 
-    let mut fastq2_reader = reader::create_reader(&read2.unwrap(), max_memory).unwrap();
+    let mut fastq2_reader = reader::FastqBufReader::new(&read2.unwrap(), max_memory).unwrap();
     let fastq2_writer = Arc::new(Mutex::new(reader::create_writer(&out_read2.unwrap())));
 
-    // let records1: Vec<_> = fastq1_reader.records().collect();
-    // let records2: Vec<_> = fastq2_reader.records().collect();
+    while let Ok(records1) = fastq1_reader.read_record_set_exact(&mut RecordSet::default()) {
+        if let Ok(records2) = fastq2_reader.read_record_set_exact(&mut RecordSet::default()) {
+            records1.into_par_iter().zip(records2.into_par_iter()).for_each(|(record1, record2)| {
 
-    // records1.into_par_iter().zip(records2.into_par_iter()).for_each(|(record1, record2)| {
-    //     let record1 = record1.expect("Error reading record");
-    //     let record2 = record2.expect("Error reading record");
+                let caps1 = barcode1.search_in_single_read(&record1);
+                let caps2 = barcode2.search_in_single_read(&record2);
+    
+                let (new_record1, new_record2) = extract::replace_reads(&record1, &record2, &caps1.clone().unwrap().as_ref(), &caps2.clone().unwrap().as_ref()).unwrap();
 
-    //     let caps1: Result<Option<fuzzy_regex::fuzzy::Match>, errors::Error> = barcode1.search_in_single_read(&record1);
-    //     let caps2 = barcode2.search_in_single_read(&record2);
+                if let Ok(capture1) = caps1 {
+                    let new_read1 = BarcodeParser::cut_from_read_seq("UMI", capture1.unwrap(), &new_record1).unwrap();
+                    let mut writer1 = fastq1_writer.lock().unwrap();
+                    if let Err(e) = seq_io::fastq::write_to(&mut *writer1, new_read1.head(), new_read1.seq(), new_read1.qual()) {
+                        eprintln!("Failed to write to output file: {}", e);
+                    }
+                }
+                
+                if let Ok(capture2) = caps2 {
+                    let new_read2 = BarcodeParser::cut_from_read_seq("UMI", capture2.unwrap(), &new_record2).unwrap();
+                    let mut writer2 = fastq2_writer.lock().unwrap();
+                    if let Err(e) = seq_io::fastq::write_to(&mut *writer2, new_read2.head(), new_read2.seq(), new_read2.qual()) {
+                        eprintln!("Failed to write to output file: {}", e);
+                    }
+                }
+            });
+        } else {
+            break;
+        }
+    }
+    let mut writer1 = Arc::try_unwrap(fastq1_writer).expect("Lock still has multiple owners").into_inner().expect("Mutex cannot be locked");
+    writer1.flush().expect("Failed to flush buffer");
+    writer1.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
 
-    //     let (new_record1, new_record2) = extract::replace_reads(&record1, &record2, &caps1.clone().unwrap().as_ref(), &caps2.clone().unwrap().as_ref()).unwrap();
-
-    //     if let Ok(capture1) = caps1 {
-    //         let new_read1 = BarcodeParser::cut_from_read_seq("UMI", capture1.unwrap(), &new_record1).unwrap();
-    //         let mut writer1 = fastq1_writer.lock().unwrap();
-    //         if let Err(e) = seq_io::fastq::write_to(
-    //             &mut *writer1,
-    //             new_read1.head(), 
-    //             new_read1.seq(), 
-    //             new_read1.qual()
-    //         ) {
-    //             eprintln!("Failed to write to output file: {}", e);
-    //         }
-    //     }
-
-    //     if let Ok(capture2) = caps2 {
-    //         let new_read2 = BarcodeParser::cut_from_read_seq("UMI", capture2.unwrap(), &new_record2).unwrap();
-    //         let mut writer2 = fastq2_writer.lock().unwrap();
-    //         if let Err(e) = seq_io::fastq::write_to(
-    //             &mut *writer2, 
-    //             new_read2.head(), 
-    //             new_read2.seq(), 
-    //             new_read2.qual()
-    //         ) {
-    //             eprintln!("Failed to write to output file: {}", e);
-    //         }
-    //     }
-    // });
-
-    // let mut writer1 = Arc::try_unwrap(fastq1_writer).expect("Lock still has multiple owners").into_inner().expect("Mutex cannot be locked");
-    // writer1.flush().expect("Failed to flush buffer");
-    // writer1.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
-
-    // let mut writer2 = Arc::try_unwrap(fastq2_writer).expect("Lock still has multiple owners").into_inner().expect("Mutex cannot be locked");
-    // writer2.flush().expect("Failed to flush buffer");
-    // writer2.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
+    let mut writer2 = Arc::try_unwrap(fastq2_writer).expect("Lock still has multiple owners").into_inner().expect("Mutex cannot be locked");
+    writer2.flush().expect("Failed to flush buffer");
+    writer2.into_inner().expect("Failed to finish compression").finish().expect("Failed to finish compression");
 }

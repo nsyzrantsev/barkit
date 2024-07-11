@@ -129,12 +129,12 @@ fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
     sequence_rc[..].to_vec()
 }
 
-pub fn replace_reads(
-    read1: &OwnedRecord, 
-    read2: &OwnedRecord, 
+pub fn replace_reads<'a>(
+    read1: &RefRecord<'a>, 
+    read2: &RefRecord<'a>, 
     read1_match: &Option<&Match>,
     read2_match: &Option<&Match>
-) -> Result<(OwnedRecord, OwnedRecord), Error> {        
+) -> Result<(RefRecord<'a>, RefRecord<'a>), Error> {        
     match (read1_match, read2_match) {
         (Some(_), _) => Ok((read1.clone(), read2.clone())),
         (None, Some(_)) => Ok((read2.clone(), read1.clone())),
