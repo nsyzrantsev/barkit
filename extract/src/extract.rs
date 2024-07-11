@@ -44,7 +44,7 @@ impl BarcodeType {
 pub struct BarcodeParser {
     regex: FuzzyRegex,
     capture_groups: HashMap<String, usize>,
-    rc_barcodes: bool
+    search_in_barcodes_in_rc: bool
 }
 
 impl BarcodeParser {
@@ -56,13 +56,13 @@ impl BarcodeParser {
         Ok(Self {
             regex,
             capture_groups,
-            rc_barcodes: rc_barcodes.unwrap_or(false)
+            search_in_barcodes_in_rc: rc_barcodes.unwrap_or(false)
         })
     }
 
     fn capture_barcodes(&self, read_seq: &[u8]) -> Result<FuzzyMatch<Vec<u8>, Match>, Error> {
         let capture = self.regex.captures(&read_seq, 3);
-        if self.rc_barcodes {
+        if self.search_in_barcodes_in_rc {
             return match capture {
                 Ok(fuzzy_match) => Ok(fuzzy_match),
                 Err(_) => {
