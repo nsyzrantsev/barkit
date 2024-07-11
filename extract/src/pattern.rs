@@ -42,16 +42,17 @@ fn escape_braces(raw_pattern: &str) -> Result<String, errors::Error> {
     ).to_string())
 }
 
-#[test]
-fn test_pattern_new() {
-    let patterns = [
-        r#"^[ATGCN]*T(?P<UMI>[ATGCN]{12})(CTCCGCTTAAGGGACT){1,3}"#,
-        r#"^N{0:2}TGGTATCAACGCAGAGT(?P<UMI>:T[ATGCN]{3}T[ATGCN]{3}T[ATGCN]{3}T)"#,
-        r#"^?P<UMI>[ATGCN]{0:12}"#,
-        r#"^[ATGCN]{0:12}"#,
-    ];
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use crate::pattern::Pattern;
 
-    for &pattern in &patterns {
+    #[rstest]
+    #[case(r#"^[ATGCN]*T(?P<UMI>[ATGCN]{12})(CTCCGCTTAAGGGACT){1,3}"#)]
+    #[case(r#"^N{0:2}TGGTATCAACGCAGAGT(?P<UMI>:T[ATGCN]{3}T[ATGCN]{3}T[ATGCN]{3}T)"#)]
+    #[case(r#"^?P<UMI>[ATGCN]{0:12}"#)]
+    #[case(r#"^[ATGCN]{0:12}"#)]
+    fn test_pattern_new(#[case] pattern: &str) {
         assert_eq!(Pattern::new(pattern).unwrap().to_string(), pattern.to_string());
     }
 }
