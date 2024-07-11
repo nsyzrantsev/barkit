@@ -23,14 +23,12 @@ pub fn run(
     max_memory: Option<usize>,
     rc_barcodes: Option<bool>
 ) {
-    process_se_fastq(read1, pattern1, out_read1, max_memory, rc_barcodes);
-
-    //process_pe_fastq(read1, read2, pattern1, pattern2, out_read1, out_read2, max_memory, rc_barcodes)
-
-    // let out_read2 = out_read2.unwrap_or_else(|| {
-    //     eprintln!("{}", errors::Error::OutputFastqFileNotProvided);
-    //     std::process::exit(1); // or handle the error appropriately
-    // });
+    match (read2, pattern2, out_read2) {
+        (Some(read2), Some(pattern2), Some(out_read2)) => process_pe_fastq(read1, read2, pattern1, pattern2, out_read1, out_read2, max_memory, rc_barcodes),
+        (None, _, _) => process_se_fastq(read1, pattern1, out_read1, max_memory, rc_barcodes),
+        (Some(_), None, _) => todo!(),
+        (Some(_), Some(_), None) => todo!()
+    };
 }
 
 fn process_se_fastq(
@@ -67,22 +65,22 @@ fn process_se_fastq(
 
 fn process_pe_fastq(
     read1: String, 
-    read2: Option<String>, 
+    read2: String, 
     pattern1: String,
-    pattern2: Option<String>,
+    pattern2: String,
     out_read1: String, 
-    out_read2: Option<String>,
+    out_read2: String,
     max_memory: Option<usize>,
     rc_barcodes: Option<bool>
 ) {
     let barcode1 = BarcodeParser::new(&pattern1, &rc_barcodes).expect("REASON");
-    let barcode2 = BarcodeParser::new(&pattern2.unwrap(), &rc_barcodes).expect("REASON");
+    let barcode2 = BarcodeParser::new(&pattern2, &rc_barcodes).expect("REASON");
     
     let mut fastq1_reader = reader::FastqBufReader::new(&read1, max_memory).unwrap();
     let fastq1_writer = Arc::new(Mutex::new(reader::create_writer(&out_read1)));
 
-    let mut fastq2_reader = reader::FastqBufReader::new(&read2.unwrap(), max_memory).unwrap();
-    let fastq2_writer = Arc::new(Mutex::new(reader::create_writer(&out_read2.unwrap())));
+    let mut fastq2_reader = reader::FastqBufReader::new(&read2, max_memory).unwrap();
+    let fastq2_writer = Arc::new(Mutex::new(reader::create_writer(&out_read2)));
 
     while let Ok(records1) = fastq1_reader.read_record_set_exact(&mut RecordSet::default()) {
         if let Ok(records2) = fastq2_reader.read_record_set_exact(&mut RecordSet::default()) {
