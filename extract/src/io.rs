@@ -7,8 +7,8 @@ use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 
 use crate::errors;
 
-const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
-const WRITE_BUFFER_SIZE: usize = 64 * 1024; // 64 KB buffer size, you can adjust this size as needed
+const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b]; // a magic number (1f 8b) in the header of gzipped files
+const WRITE_BUFFER_SIZE: usize = 512 * 1024 * 1024; // 64 KB buffer size, you can adjust this size as needed
 
 
 pub struct FastqBufReader {
@@ -20,7 +20,7 @@ impl FastqBufReader {
         let path = Path::new(&fastq_path);
         let file = File::open(&path).expect("couldn't open file");
     
-        let buffer_size = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
+        let buffer_size_in_bytes = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
     
         let mut first_two_bytes = [0u8; 2];
 
@@ -30,8 +30,8 @@ impl FastqBufReader {
             .expect("couldn't read the first two bytes of file");
     
         let reader: Box<dyn BufRead> = match first_two_bytes {
-            GZIP_MAGIC_BYTES => Box::new(BufReader::with_capacity(buffer_size, GzDecoder::new(file))),
-            _ => Box::new(BufReader::with_capacity(buffer_size, file)),
+            GZIP_MAGIC_BYTES => Box::new(BufReader::with_capacity(buffer_size_in_bytes, GzDecoder::new(file))),
+            _ => Box::new(BufReader::with_capacity(buffer_size_in_bytes, file)),
         };
     
         Ok(FastqBufReader {
@@ -63,7 +63,14 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
     }
 }
 
-pub fn create_writer(file: &str) -> BufWriter<flate2::write::GzEncoder<File>>{
+pub struct FastqBufWriter {}
+
+impl FastqBufWriter {
+    pub fn new() {}
+
+    pub fn close() {}
+}
+pub fn create_writer(file: &str) -> BufWriter<GzEncoder<File>> {
     let file = File::create(file).expect("Unable to create file");
     let encoder = GzEncoder::new(file, Compression::default());
     BufWriter::with_capacity(WRITE_BUFFER_SIZE, encoder)
