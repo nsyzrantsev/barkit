@@ -10,18 +10,18 @@ pub enum Error {
     OutputFastqFileNotProvided,
     #[error("Regex error: {0}")]
     RegexError(#[from] regex::Error),
-    #[error("Capture group assignment index is out of range: {0}")]
-    CaptureGroupIndexError(usize),
+    #[error("UMI capture group not found in your pattern")]
+    UMIPatternNotFound,
     #[error("Unexpected barcode capture group name: {0}")]
     UnexpectedCaptureGroupName(String),
     #[error("Both reads did not match")]
     BothReadsNotMatch,
-    #[error("Tre regex error: {0}")]
-    TreRegexError(#[from] fuzzy_regex::errors::TreRegexError),
     #[error("Failed to read a file: {0}")]
     FileReadError(#[from] std::io::Error),
     #[error("Unexprected error type")]
-    UnexpectedErrorType
+    UnexpectedErrorType,
+    #[error("No match")]
+    PatternNotMatched
 }
 
 impl Clone for Error {
@@ -31,12 +31,12 @@ impl Clone for Error {
             Error::FromUtf8Error(err) => Error::FromUtf8Error(err.clone()),
             Error::OutputFastqFileNotProvided => Error::OutputFastqFileNotProvided,
             Error::RegexError(err) => Error::RegexError(err.clone()),
-            Error::CaptureGroupIndexError(idx) => Error::CaptureGroupIndexError(*idx),
+            Error::UMIPatternNotFound => Error::UMIPatternNotFound,
             Error::UnexpectedCaptureGroupName(name) => Error::UnexpectedCaptureGroupName(name.clone()),
             Error::BothReadsNotMatch => Error::BothReadsNotMatch,
-            Error::TreRegexError(err) => Error::TreRegexError(err.to_owned().clone()),
             Error::FileReadError(err) => Error::FileReadError(err.kind().clone().into()),
-            Error::UnexpectedErrorType => Error::UnexpectedErrorType
+            Error::UnexpectedErrorType => Error::UnexpectedErrorType,
+            Error::PatternNotMatched => Error::PatternNotMatched
         }
     }
 }

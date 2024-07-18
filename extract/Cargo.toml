@@ -11,8 +11,8 @@ flate2 = "1.0.30"
 regex = "1.10.4"
 seq_io = "0.3.2"
 thiserror = "1.0.61"
-fuzzy_regex = { path = "../fuzzy_regex" }
 rayon = "1.10.0"
+fancy-regex = "0.13.0"
 
 [dev-dependencies]
 rstest = "0.21.0"

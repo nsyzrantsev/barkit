@@ -1,5 +1,5 @@
-use fuzzy_regex::fuzzy::{FuzzyRegex, FuzzyMatch, Match};
-use crate::pattern::Pattern;
+use regex::bytes::{Captures, Match, Regex};
+use crate::pattern;
 
 use std::{collections::HashMap, str};
 use seq_io::fastq::{OwnedRecord, Record, RefRecord};
@@ -42,53 +42,37 @@ impl BarcodeType {
 }
 
 pub struct BarcodeParser {
-    regex: FuzzyRegex,
-    capture_groups: HashMap<String, usize>,
+    regex: Regex,
     search_in_barcodes_in_rc: bool
 }
 
 impl BarcodeParser {
-    pub fn new(pattern: &str, rc_barcodes: &Option<bool>) -> Result<Self, Error> {
-        let escaped_pattern = Pattern::new(pattern)?;
-        let capture_groups = escaped_pattern.get_group_indices()?;
-        let posix_pattern = escaped_pattern.clear()?;
-        let regex = FuzzyRegex::new(&posix_pattern)?;
+    pub fn new(pattern: &str, rc_barcodes: &Option<bool>, max_error: usize) -> Result<Self, Error> {
+        let fuzzy_pattern = pattern::create_fuzzy(&pattern, &max_error);
+        let regex = Regex::new(&fuzzy_pattern)?;
         Ok(Self {
             regex,
-            capture_groups,
             search_in_barcodes_in_rc: rc_barcodes.unwrap_or(false)
         })
     }
 
-    fn capture_barcodes(&self, read_seq: &[u8]) -> Result<FuzzyMatch<Vec<u8>, Match>, Error> {
-        let capture = self.regex.captures(&read_seq, 3);
-        if self.search_in_barcodes_in_rc {
-            return match capture {
-                Ok(fuzzy_match) => Ok(fuzzy_match),
-                Err(_) => {
-                    let read_seq_rc = get_reverse_complement(&read_seq);
-                    Ok(self.regex.captures(&read_seq_rc, 3)?)
-                }
-            }
-        }
-        Ok(capture?)
+    fn capture_barcodes<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures<'a>, Error> {
+        let captures = self.regex.captures(read_seq);
+    
+        // if self.search_in_barcodes_in_rc && captures.is_none() {
+        //     let read_seq_rc = get_reverse_complement(read_seq);
+        //     let captures_rc = self.regex.captures(&read_seq_rc);   
+        //     return captures_rc.ok_or(Error::PatternNotMatched);
+        // }
+    
+        captures.ok_or(Error::PatternNotMatched)
     }
 
-    pub fn search_in_single_read(&self, read: &RefRecord) -> Result<Option<Match>, Error> {
+    pub fn search_in_single_read<'a>(&'a self, read: &'a RefRecord) -> Result<Match, Error> {
         let read_seq = read.seq();
         let captures = self.capture_barcodes(read_seq)?;
     
-        let matches = captures.get_matches();
-
-        let capture_group_index = *self.capture_groups.get(&BarcodeType::UMI.to_string()).map_or(
-            Err(Error::UnexpectedCaptureGroupName(BarcodeType::UMI.to_string())), Ok
-        )?;
-    
-        let result = matches
-            .get(capture_group_index)
-            .map_or(Err(Error::CaptureGroupIndexError(capture_group_index)), Ok)?;
-        
-        Ok(result.clone())
+        captures.name(&BarcodeType::UMI.to_string()).ok_or(Error::UMIPatternNotFound)
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
@@ -121,12 +105,11 @@ impl BarcodeParser {
 
 
 fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
-    let sequence_rc: Vec<u8> = sequence
+    sequence
         .iter()
-        .map(|&base| TRANSLATION_TABLE[base as usize])
         .rev()
-        .collect();
-    sequence_rc[..].to_vec()
+        .map(|&base| TRANSLATION_TABLE[base as usize])
+        .collect()
 }
 
 pub fn replace_reads<'a>(

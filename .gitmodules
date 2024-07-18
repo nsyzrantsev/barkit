@@ -1,3 +1,0 @@
-[submodule "fuzzy_regex/tre"]
-	path = fuzzy_regex/tre
-	url = https://github.com/laurikari/tre.git

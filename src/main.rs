@@ -13,7 +13,9 @@ fn main() {
             pattern1,
             pattern2,
             max_memory,
-            rc_barcodes
+            threads,
+            rc_barcodes,
+            max_error
         } => {
             extract::run(
                 read1.to_string(),
@@ -23,7 +25,9 @@ fn main() {
                 out_read1.to_string(),
                 out_read2.clone(),
                 max_memory.clone(),
-                rc_barcodes.clone()
+                threads.clone(),
+                rc_barcodes.clone(),
+                max_error.clone()
             );
         }
     }

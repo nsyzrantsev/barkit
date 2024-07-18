@@ -41,8 +41,16 @@ pub enum Commands {
         #[arg(short='m', long)]
         max_memory: Option<usize>,
 
+        /// the approximate number of threads to use.
+        #[arg(short='t', long, default_value = "1")]
+        threads: Option<usize>,
+
         /// searches for both barcode pattern in reverse complement
         #[arg(short='r', long, action=ArgAction::SetTrue)]
-        rc_barcodes: Option<bool>
+        rc_barcodes: Option<bool>,
+
+        /// max error (mistmatch) between provided pattern and read sequence
+        #[arg(short='e', long, default_value = "1")]
+        max_error: Option<usize>,
     },
 }
