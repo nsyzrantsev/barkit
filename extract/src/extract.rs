@@ -43,7 +43,7 @@ impl BarcodeType {
 
 pub struct BarcodeParser {
     regex: Regex,
-    search_in_barcodes_in_rc: bool
+    rc_barcodes: bool
 }
 
 impl BarcodeParser {
@@ -52,7 +52,7 @@ impl BarcodeParser {
         let regex = Regex::new(&fuzzy_pattern)?;
         Ok(Self {
             regex,
-            search_in_barcodes_in_rc: rc_barcodes.unwrap_or(false)
+            rc_barcodes: rc_barcodes.unwrap_or(false)
         })
     }
 

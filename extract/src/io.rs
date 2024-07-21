@@ -1,9 +1,10 @@
 use std::path::Path;
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader, BufWriter};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::sync::{Arc, Mutex};
 
 use seq_io::fastq::{Reader, RecordSet, RefRecord};
-use flate2::{read::GzDecoder, write::GzEncoder, Compression};
+use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
 
 use rayon::prelude::*;
 
@@ -27,7 +28,7 @@ pub fn create_reader(fastq_path: &str, buffer_size_in_megabytes: Option<usize>) 
         .expect("couldn't read the first two bytes of file");
 
     let reader: Box<dyn BufRead> = match first_two_bytes {
-        GZIP_MAGIC_BYTES => Box::new(BufReader::with_capacity(buffer_size_in_bytes, GzDecoder::new(file))),
+        GZIP_MAGIC_BYTES => Box::new(BufReader::with_capacity(buffer_size_in_bytes, MultiGzDecoder::new(file))),
         _ => Box::new(BufReader::with_capacity(buffer_size_in_bytes, file)),
     };
 
@@ -50,8 +51,12 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
 }
 
 
-pub fn create_writer(file: &str) -> BufWriter<GzEncoder<File>> {
-    let file = File::create(file).expect("Unable to create file");
-    let encoder = GzEncoder::new(file, Compression::default());
-    BufWriter::with_capacity(WRITE_BUFFER_SIZE, encoder)
+pub fn create_writer(file: &str) -> Result<Arc<Mutex<BufWriter<Box<dyn Write>>>>, errors::Error> {
+    let path = Path::new(file);
+    let file = File::create(path)?;
+    let writer: Box<dyn std::io::Write> = match path.extension().and_then(|ext| ext.to_str()) {
+        Some("gz") => Box::new(GzEncoder::new(file, Compression::default())),
+        _ => Box::new(file),
+    };
+    Ok(Arc::new(Mutex::new(BufWriter::with_capacity(WRITE_BUFFER_SIZE, writer))))
 }

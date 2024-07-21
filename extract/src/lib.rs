@@ -4,8 +4,9 @@ mod extract;
 mod pattern;
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use seq_io::fastq::Reader;
 
@@ -43,25 +44,26 @@ fn process_se_fastq(
     rc_barcodes: Option<bool>,
     max_error: Option<usize>
 ) {
-    let barcode = BarcodeParser::new(&pattern, &rc_barcodes, max_error.unwrap()).expect("REASON");
+    let max_error = max_error.unwrap_or(1);
+    let threads = threads.unwrap_or(1);
+
+    let barcode = BarcodeParser::new(&pattern, &rc_barcodes, max_error).expect("REASON");
     
-    // let mut reader = io::create_reader(&read, max_memory).unwrap();
-    // let mut writer = io::create_writer(&out_read);
-
     let reader = Reader::new(BufReader::with_capacity(128 * 1024 * 1024, File::open(&Path::new(&read)).expect("couldn't open file")));
+    // let reader: Arc<Mutex<Reader<Box<dyn BufRead>>>> = Arc::new(Mutex::new(io::create_reader(&read, max_memory).expect("Failed to create reader")));
+    let writer = io::create_writer(&out_read).expect("Failed to create writer");
 
-    let mut writer = BufWriter::new(File::create("filtered.fastq").unwrap());
-
-    parallel_fastq(reader, threads.unwrap() as u32, 10,
+    parallel_fastq(reader, threads as u32, 10,
         |record, found| {
             *found = barcode.search_in_single_read(&record).is_ok();
         },
-        |record, found| { // runs in main thread
+        |record, found| {
             if *found {
-                record.write(&mut writer).unwrap();
+                let mut writer = writer.lock().unwrap();
+                record.write(&mut *writer).expect("Failed to write record");
             }
             None::<()>
-    }).unwrap();
+    }).expect("Failed to process fastq in parallel");
 }
 
 
