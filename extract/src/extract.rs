@@ -59,17 +59,10 @@ impl BarcodeParser {
     fn capture_barcodes<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures<'a>, Error> {
         let captures = self.regex.captures(read_seq);
     
-        // if self.search_in_barcodes_in_rc && captures.is_none() {
-        //     let read_seq_rc = get_reverse_complement(read_seq);
-        //     let captures_rc = self.regex.captures(&read_seq_rc);   
-        //     return captures_rc.ok_or(Error::PatternNotMatched);
-        // }
-    
         captures.ok_or(Error::PatternNotMatched)
     }
 
-    pub fn search_in_single_read<'a>(&'a self, read: &'a RefRecord) -> Result<Match, Error> {
-        let read_seq = read.seq();
+    pub fn search_in_single_read<'a>(&'a self, read_seq: &'a[u8]) -> Result<Match, Error> {
         let captures = self.capture_barcodes(read_seq)?;
     
         captures.name(&BarcodeType::UMI.to_string()).ok_or(Error::UMIPatternNotFound)
@@ -104,7 +97,7 @@ impl BarcodeParser {
 }
 
 
-fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
+pub(crate) fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
     sequence
         .iter()
         .rev()

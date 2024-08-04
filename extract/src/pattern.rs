@@ -30,7 +30,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, error_num: &usize) -> Ve
         let mut s = String::new();
         for idx in 0..num_chars {
             if (permutation_mask & (1 << idx)) == 0 {
-                s.push('.')
+                s.push_str("[ATGCN]")
             } else {
                 s.push(upper[idx])
             }
