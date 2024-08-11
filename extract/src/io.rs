@@ -1,44 +1,50 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-use std::sync::{Arc, Mutex};
 
 use lz4::Decoder;
-use seq_io::fastq::{Reader, RecordSet, RefRecord};
+use seq_io::fastq::Reader;
 use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
 
-use rayon::prelude::*;
+use gzp::{
+    deflate::Bgzf, par::decompress::ParDecompressBuilder, BUFSIZE,
+};
 
 use crate::errors;
 
 const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b]; // a magic number in the header of GZIP files
 const LZ4_MAGIC_BYTES: [u8; 4] = [0x04, 0x22, 0x4d, 0x18]; // a magic number in the header of LZ4 files
+const BGZIP_MAGIC_BYTES: [u8; 4] = [0x42, 0x43, 0x02, 0x00]; // a magic number in the header of BGZIP files
+
 const WRITE_BUFFER_SIZE: usize = 512 * 1024 * 1024; // 64 KB buffer size, you can adjust this size as needed
 
 enum CompressionType {
+    BGZIP,
     GZIP,
     LZ4,
     NO
 }
 
 fn get_fastq_compression_type(path: &Path) -> CompressionType {
-    let mut first_four_bytes = [0u8; 4];
+    let mut buffer = [0u8; 16];
 
     File::open(&path)
         .expect("couldn't open file")
-        .read_exact(&mut first_four_bytes)
+        .read_exact(&mut buffer)
         .expect("couldn't read the first two bytes of file");
 
-    if first_four_bytes[..2] == GZIP_MAGIC_BYTES {
+    if buffer[..2] == GZIP_MAGIC_BYTES {
         return CompressionType::GZIP
-    } else if first_four_bytes[..4] == LZ4_MAGIC_BYTES {
+    } else if buffer[..4] == LZ4_MAGIC_BYTES {
         return CompressionType::LZ4
+    } else if buffer[12..16] == BGZIP_MAGIC_BYTES {
+        return CompressionType::BGZIP
     } else {
         CompressionType::NO
     }
 }
 
-pub fn create_reader(fastq_path: &str, buffer_size_in_megabytes: Option<usize>) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, errors::Error> {
+pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, errors::Error> {
     let path = Path::new(&fastq_path);
     let file = File::open(&path).expect("couldn't open file");
 
@@ -47,6 +53,13 @@ pub fn create_reader(fastq_path: &str, buffer_size_in_megabytes: Option<usize>) 
     let decoder: Box<dyn Read> = match get_fastq_compression_type(path) {
         CompressionType::GZIP => Box::new(MultiGzDecoder::new(file)),
         CompressionType::LZ4 => Box::new(Decoder::new(file)?),
+        CompressionType::BGZIP => Box::new(
+            ParDecompressBuilder::<Bgzf>::new()
+            .num_threads(threads_num).expect("REASON")
+            .from_reader(BufReader::with_capacity(
+                BUFSIZE,
+                file
+            ))),
         CompressionType::NO => Box::new(file),
     };
 

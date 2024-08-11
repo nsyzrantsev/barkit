@@ -47,12 +47,12 @@ pub struct BarcodeParser {
 }
 
 impl BarcodeParser {
-    pub fn new(pattern: &str, rc_barcodes: &Option<bool>, max_error: usize) -> Result<Self, Error> {
+    pub fn new(pattern: &str, rc_barcodes: &bool, max_error: usize) -> Result<Self, Error> {
         let fuzzy_pattern = pattern::create_fuzzy(&pattern, &max_error);
         let regex = Regex::new(&fuzzy_pattern)?;
         Ok(Self {
             regex,
-            rc_barcodes: rc_barcodes.unwrap_or(false)
+            rc_barcodes: *rc_barcodes
         })
     }
 
@@ -108,12 +108,12 @@ pub(crate) fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
 pub fn replace_reads<'a>(
     read1: &RefRecord<'a>, 
     read2: &RefRecord<'a>, 
-    read1_match: &Option<&Match>,
-    read2_match: &Option<&Match>
+    read1_match: Result<Match, Error>,
+    read2_match: Result<Match, Error>
 ) -> Result<(RefRecord<'a>, RefRecord<'a>), Error> {        
     match (read1_match, read2_match) {
-        (Some(_), _) => Ok((read1.clone(), read2.clone())),
-        (None, Some(_)) => Ok((read2.clone(), read1.clone())),
+        (Ok(_), _) => Ok((read1.clone(), read2.clone())),
+        (Err(_), Ok(_)) => Ok((read2.clone(), read1.clone())),
         _ => Err(Error::BothReadsNotMatch),
     }
 }

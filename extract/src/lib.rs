@@ -3,17 +3,12 @@ mod errors;
 mod extract;
 mod pattern;
 
-use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::path::Path;
-use std::sync::{Arc, Mutex};
 
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use seq_io::fastq::{OwnedRecord, Reader, RecordSet, RefRecord};
+use rayon::prelude::*;
+
+use seq_io::fastq::{Record, RecordSet};
 
 use extract::BarcodeParser;
-use seq_io::fastq::Record;
-
 
 pub fn run(
     read1: String, 
@@ -29,6 +24,7 @@ pub fn run(
 ) {
     let max_error = max_error.unwrap_or(1);
     let threads = threads.unwrap_or(1);
+    let rc_barcodes = rc_barcodes.unwrap_or(false);
     match (pattern1, pattern2) {
         (Some(pattern1), Some(pattern2)) => process_pe_fastq(read1, read2.unwrap(), pattern1, pattern2, out_read1, out_read2.unwrap(), max_memory, threads, rc_barcodes, max_error),
         (Some(pattern1), None) => process_se_fastq(read1, pattern1, out_read1, max_memory, threads, rc_barcodes, max_error),
@@ -42,33 +38,34 @@ fn process_se_fastq(
     out_read: String,
     max_memory: Option<usize>,
     threads: usize,
-    rc_barcodes: Option<bool>,
+    rc_barcodes: bool,
     max_error: usize
 ) {
     let barcode = BarcodeParser::new(&pattern, &rc_barcodes, max_error).expect("REASON");
 
-    let mut reader = io::create_reader(&read, max_memory).expect("Failed to create reader");
+    let mut reader = io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
     let writer = io::create_writer(&out_read).expect("Failed to create writer");
 
-    // let mut found = barcode.search_in_single_read(&record.seq()).is_ok();
-    // let read_seq_rc = extract::get_reverse_complement(record.seq());
-    // let found = barcode.search_in_single_read(&read_seq_rc).is_ok();
+    loop {
+        let mut record_set = RecordSet::default();
 
-    let mut records_number = 500_000;
-    let mut records: Vec<OwnedRecord> = vec![];
-    while let Some(result) = reader.next() {
-        match result {
-            Ok(record) => {
-                records.push(record.to_owned_record());
-            },
-            Err(e) => eprintln!("Error reading record: {}", e),
-        }
-        records_number -= 1;
-        if records_number <= 0 {
-            records.par_iter().for_each(|record| {
+        let filled_set = reader.read_record_set(&mut record_set);
+
+        if filled_set.is_none() {
+            break;
+        } else {
+            record_set.into_iter().collect::<Vec<_>>().par_iter().for_each(|record| {
                 let found = barcode.search_in_single_read(&record.seq()).is_ok();
+                let found = if !found && rc_barcodes {
+                    let read_seq_rc = extract::get_reverse_complement(record.seq());
+                    barcode.search_in_single_read(&read_seq_rc).is_ok()
+                } else {
+                    found
+                };
+                // if found {
+                //     todo!()
+                // }
             });
-            records.clear();
         }
     }
 }
@@ -83,6 +80,62 @@ fn process_pe_fastq(
     out_read2: String,
     max_memory: Option<usize>,
     threads: usize,
-    rc_barcodes: Option<bool>,
+    rc_barcodes: bool,
     max_error: usize
-) {}
+) {
+    let barcode1 = BarcodeParser::new(&pattern1, &rc_barcodes, max_error).expect("REASON");
+    let barcode2 = BarcodeParser::new(&pattern2, &rc_barcodes, max_error).expect("REASON");
+
+
+    let mut reader1 = io::create_reader(&read1, threads, max_memory).expect("Failed to create reader");
+    let mut reader2 = io::create_reader(&read2, threads, max_memory).expect("Failed to create reader");
+
+    let writer1 = io::create_writer(&out_read1).expect("Failed to create writer");
+
+    loop {
+        let mut record_set1 = RecordSet::default();
+        let mut record_set2 = RecordSet::default();
+
+        let filled_set1 = reader1.read_record_set(&mut record_set1);
+        let filled_set2 = reader2.read_record_set(&mut record_set2);
+
+        if filled_set1.is_none() | filled_set2.is_none() {
+            break;
+        } else {
+            let records1: Vec<seq_io::fastq::RefRecord> = record_set1.into_iter().collect::<Vec<_>>();
+            let records2: Vec<seq_io::fastq::RefRecord> = record_set2.into_iter().collect::<Vec<_>>();
+
+            records1.par_iter().zip(records2.par_iter()).for_each(|(record1, record2)| {
+                let read1_match = barcode1.search_in_single_read(&record1.seq());
+                let read2_match = barcode2.search_in_single_read(&record2.seq());
+
+                let read1_seq_rc;
+                let read1_match = match read1_match {
+                    Ok(matched_record) => Ok(matched_record),
+                    Err(_) => {
+                        read1_seq_rc = extract::get_reverse_complement(record1.seq());
+                        barcode1.search_in_single_read(&read1_seq_rc)
+                    }
+                };
+                
+                let read2_seq_rc;
+                let read2_match = match read2_match {
+                    Ok(matched_record) => Ok(matched_record),
+                    Err(_) => {
+                        read2_seq_rc = extract::get_reverse_complement(record2.seq());
+                        barcode1.search_in_single_read(&read2_seq_rc)
+                    }
+                };
+            
+                let replaced_reads = extract::replace_reads(record1, record2, read1_match, read2_match);
+
+                match replaced_reads {
+                    Ok((record1, record2)) => {
+                        todo!();
+                    },
+                    Err(_) => ()
+                }
+            });
+        }
+    }
+}
