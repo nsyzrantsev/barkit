@@ -54,7 +54,11 @@ fn process_se_fastq(
         if filled_set.is_none() {
             break;
         } else {
-            let results: Vec<_> = record_set.into_iter().collect::<Vec<_>>().par_iter().filter_map(|record| {
+            let result_reads: Vec<_> = record_set
+            .into_iter()
+            .collect::<Vec<_>>()
+            .par_iter()
+            .filter_map(|record| {
                 let matched_read = barcode.search_in_single_read(&record.seq());
                 let read_seq_rc: Vec<u8>;
                 let matched_read = if matched_read.is_err() && rc_barcodes {
@@ -65,19 +69,23 @@ fn process_se_fastq(
                 };
                 match matched_read {
                     Ok(match_val) => {
-                        let new_record = BarcodeParser::cut_from_read_seq(
+                        Some(BarcodeParser::cut_from_read_seq(
                             &BarcodeType::UMI.to_string(),
                             match_val,
-                            record).unwrap();
-                        Some((new_record.head().to_vec(), new_record.seq().to_vec(), new_record.qual().to_vec()))
+                            record).unwrap())
                     },
                     Err(_) => None
                 }
             }).collect();
             
             let mut writer = writer.lock().unwrap();
-            for (head, seq, qual) in results {
-                let _ = seq_io::fastq::write_to(&mut *writer, &head, &seq, &qual);
+            for read_record in result_reads {
+                let _ = seq_io::fastq::write_to(
+                    &mut *writer,
+                    &read_record.head(),
+                    &read_record.seq(),
+                    &read_record.qual()
+                );
             }
         }
     }
@@ -104,6 +112,8 @@ fn process_pe_fastq(
     let mut reader2 = io::create_reader(&read2, threads, max_memory).expect("Failed to create reader");
 
     let writer1 = io::create_writer(&out_read1).expect("Failed to create writer");
+    let writer2 = io::create_writer(&out_read2).expect("Failed to create writer");
+
 
     loop {
         let mut record_set1 = RecordSet::default();
@@ -118,10 +128,14 @@ fn process_pe_fastq(
             let records1: Vec<seq_io::fastq::RefRecord> = record_set1.into_iter().collect::<Vec<_>>();
             let records2: Vec<seq_io::fastq::RefRecord> = record_set2.into_iter().collect::<Vec<_>>();
 
-            records1.par_iter().zip(records2.par_iter()).for_each(|(record1, record2)| {
+            let result_read_pairs: Vec<_> = records1
+            .par_iter()
+            .zip(records2.par_iter())
+            .filter_map(|(record1, record2)| {
                 let read1_match = barcode1.search_in_single_read(&record1.seq());
                 let read2_match = barcode2.search_in_single_read(&record2.seq());
 
+                // Handle read1_match
                 let read1_seq_rc;
                 let read1_match = match read1_match {
                     Ok(matched_record) => Ok(matched_record),
@@ -130,7 +144,8 @@ fn process_pe_fastq(
                         barcode1.search_in_single_read(&read1_seq_rc)
                     }
                 };
-                
+
+                // Handle read2_match
                 let read2_seq_rc;
                 let read2_match = match read2_match {
                     Ok(matched_record) => Ok(matched_record),
@@ -139,16 +154,32 @@ fn process_pe_fastq(
                         barcode1.search_in_single_read(&read2_seq_rc)
                     }
                 };
-            
-                let replaced_reads = extract::replace_reads(record1, record2, read1_match, read2_match);
 
-                match replaced_reads {
-                    Ok((record1, record2)) => {
-                        todo!();
-                    },
-                    Err(_) => ()
+                // Replace reads and check the result
+                match extract::replace_reads(record1, record2, read1_match, read2_match) {
+                    Ok((record1, record2)) => Some((record1, record2)),
+                    Err(_) => None,
                 }
-            });
+            })
+            .collect();
+
+            let mut writer1 = writer1.lock().unwrap();
+            let mut writer2 = writer2.lock().unwrap();
+            for (read1_record, read2_record) in result_read_pairs {
+                let _ = seq_io::fastq::write_to(
+                    &mut *writer1,
+                    &read1_record.head(),
+                    &read1_record.seq(),
+                    &read1_record.qual()    
+                );
+
+                let _ = seq_io::fastq::write_to(
+                    &mut *writer2,
+                    &read2_record.head(),
+                    &read2_record.seq(),
+                    &read2_record.qual()    
+                );
+            }
         }
     }
 }

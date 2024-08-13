@@ -38,7 +38,7 @@ pub enum Commands {
         pattern2: Option<String>,
 
         /// max memory (RAM) usage in megabytes (MB)
-        #[arg(short='r', long)]
+        #[arg(short='m', long)]
         max_memory: Option<usize>,
 
         /// the approximate number of threads to use.
