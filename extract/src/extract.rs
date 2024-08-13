@@ -1,7 +1,7 @@
 use regex::bytes::{Captures, Match, Regex};
 use crate::pattern;
 
-use std::{collections::HashMap, str};
+use std::str;
 use seq_io::fastq::{OwnedRecord, Record, RefRecord};
 
 use crate::errors::Error;
@@ -29,12 +29,12 @@ const TRANSLATION_TABLE: [u8; 256] = {
     table
 };
 
-enum BarcodeType {
+pub enum BarcodeType {
     UMI
 }
 
 impl BarcodeType {
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         match *self {
             BarcodeType::UMI => "UMI".to_string(),
         }
@@ -58,7 +58,6 @@ impl BarcodeParser {
 
     fn capture_barcodes<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures<'a>, Error> {
         let captures = self.regex.captures(read_seq);
-    
         captures.ok_or(Error::PatternNotMatched)
     }
 

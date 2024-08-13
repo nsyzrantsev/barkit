@@ -8,7 +8,7 @@ use rayon::prelude::*;
 
 use seq_io::fastq::{Record, RecordSet};
 
-use extract::BarcodeParser;
+use extract::{BarcodeParser, BarcodeType};
 
 pub fn run(
     read1: String, 
@@ -54,18 +54,31 @@ fn process_se_fastq(
         if filled_set.is_none() {
             break;
         } else {
-            record_set.into_iter().collect::<Vec<_>>().par_iter().for_each(|record| {
-                let found = barcode.search_in_single_read(&record.seq()).is_ok();
-                let found = if !found && rc_barcodes {
-                    let read_seq_rc = extract::get_reverse_complement(record.seq());
-                    barcode.search_in_single_read(&read_seq_rc).is_ok()
+            let results: Vec<_> = record_set.into_iter().collect::<Vec<_>>().par_iter().filter_map(|record| {
+                let matched_read = barcode.search_in_single_read(&record.seq());
+                let read_seq_rc: Vec<u8>;
+                let matched_read = if matched_read.is_err() && rc_barcodes {
+                    read_seq_rc = extract::get_reverse_complement(record.seq());
+                    barcode.search_in_single_read(&read_seq_rc)
                 } else {
-                    found
+                    matched_read
                 };
-                // if found {
-                //     todo!()
-                // }
-            });
+                match matched_read {
+                    Ok(match_val) => {
+                        let new_record = BarcodeParser::cut_from_read_seq(
+                            &BarcodeType::UMI.to_string(),
+                            match_val,
+                            record).unwrap();
+                        Some((new_record.head().to_vec(), new_record.seq().to_vec(), new_record.qual().to_vec()))
+                    },
+                    Err(_) => None
+                }
+            }).collect();
+            
+            let mut writer = writer.lock().unwrap();
+            for (head, seq, qual) in results {
+                let _ = seq_io::fastq::write_to(&mut *writer, &head, &seq, &qual);
+            }
         }
     }
 }

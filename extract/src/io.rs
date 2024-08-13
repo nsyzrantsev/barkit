@@ -1,7 +1,9 @@
 use std::path::Path;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Read};
+use std::sync::{Arc, Mutex};
 
+use gzp::par::compress::ParCompressBuilder;
 use lz4::Decoder;
 use seq_io::fastq::Reader;
 use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
@@ -82,21 +84,17 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
 }
 
 
-struct FastqReaderPair {
-}
-
-
-impl FastqReaderPair {
-    
-}
-
-
-pub fn create_writer(file: &str) -> Result<BufWriter<Box<dyn Write>>, errors::Error> {
+pub fn create_writer(file: &str) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
     let writer: Box<dyn std::io::Write> = match path.extension().and_then(|ext| ext.to_str()) {
         Some("gz") => Box::new(GzEncoder::new(file, Compression::default())),
+        Some("bgz") => Box::new(
+            ParCompressBuilder::<Bgzf>::new().from_writer(
+                GzEncoder::new(file, Compression::default())
+            )
+        ),
         _ => Box::new(file),
     };
-    Ok(BufWriter::with_capacity(WRITE_BUFFER_SIZE, writer))
+    Ok(Arc::new(Mutex::new(BufWriter::with_capacity(WRITE_BUFFER_SIZE, writer))))
 }

@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use fancy_regex::Regex;
 
-const PATTERN_REGEX: &str = r"(?<!\[)\b[atgcn]+\b(?!\])";
+const PATTERN_REGEX: &str = r"(?<!\[)\b[ATGCNatgcn]+\b(?!\])";
 
 pub fn generate_sequences_with_pcr_errors(string: &str, error_num: &usize) -> Vec<String> {
     if string.len() == 1 || *error_num == 0 {
