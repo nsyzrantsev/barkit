@@ -21,7 +21,7 @@ const BGZIP_MAGIC_BYTES: [u8; 4] = [0x42, 0x43, 0x02, 0x00]; // a magic number i
 const WRITE_BUFFER_SIZE: usize = 512 * 1024 * 1024; // 64 KB buffer size, you can adjust this size as needed
 
 enum CompressionType {
-    BGZIP,
+    BGZF,
     GZIP,
     LZ4,
     NO
@@ -40,7 +40,7 @@ fn get_fastq_compression_type(path: &Path) -> CompressionType {
     } else if buffer[..4] == LZ4_MAGIC_BYTES {
         return CompressionType::LZ4
     } else if buffer[12..16] == BGZIP_MAGIC_BYTES {
-        return CompressionType::BGZIP
+        return CompressionType::BGZF
     } else {
         CompressionType::NO
     }
@@ -55,7 +55,7 @@ pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megaby
     let decoder: Box<dyn Read> = match get_fastq_compression_type(path) {
         CompressionType::GZIP => Box::new(MultiGzDecoder::new(file)),
         CompressionType::LZ4 => Box::new(Decoder::new(file)?),
-        CompressionType::BGZIP => Box::new(
+        CompressionType::BGZF => Box::new(
             ParDecompressBuilder::<Bgzf>::new()
             .num_threads(threads_num).expect("REASON")
             .from_reader(BufReader::with_capacity(

@@ -129,13 +129,15 @@ fn process_pe_fastq(
     let barcode1 = BarcodeParser::new(&pattern1, &rc_barcodes, max_error).expect("REASON");
     let barcode2 = BarcodeParser::new(&pattern2, &rc_barcodes, max_error).expect("REASON");
 
+    let mut reader1 = io::create_reader(&read1, threads, max_memory)
+        .expect("Failed to read input forward reads");
+    let mut reader2 = io::create_reader(&read2, threads, max_memory)
+        .expect("Failed to read input reverse reads");
 
-    let mut reader1 = io::create_reader(&read1, threads, max_memory).expect("Failed to create reader");
-    let mut reader2 = io::create_reader(&read2, threads, max_memory).expect("Failed to create reader");
-
-    let writer1 = io::create_writer(&out_read1, &compression_format).expect("Failed to create writer");
-    let writer2 = io::create_writer(&out_read2, &compression_format).expect("Failed to create writer");
-
+    let writer1 = io::create_writer(&out_read1, &compression_format)
+        .expect("Failed to write output forward reads");
+    let writer2 = io::create_writer(&out_read2, &compression_format)
+        .expect("Failed to write output reverse reads");
 
     loop {
         let mut record_set1 = RecordSet::default();
@@ -157,7 +159,7 @@ fn process_pe_fastq(
                 let read1_match = barcode1.search_in_single_read(&record1.seq());
                 let read2_match = barcode2.search_in_single_read(&record2.seq());
 
-                // Handle read1_match
+                // Handle read1 match
                 let read1_seq_rc;
                 let read1_match = match read1_match {
                     Ok(matched_record) => Ok(matched_record),
@@ -167,7 +169,7 @@ fn process_pe_fastq(
                     }
                 };
 
-                // Handle read2_match
+                // Handle read2 match
                 let read2_seq_rc;
                 let read2_match = match read2_match {
                     Ok(matched_record) => Ok(matched_record),
