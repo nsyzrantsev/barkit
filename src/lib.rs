@@ -52,5 +52,9 @@ pub enum Commands {
         /// max error (mistmatch) between provided pattern and read sequence
         #[arg(short='e', long, default_value = "1")]
         max_error: Option<usize>,
+
+        /// compression format for output FASTQ files
+        #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf"])]
+        compression_format: String,
     },
 }

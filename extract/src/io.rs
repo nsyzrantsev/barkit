@@ -84,12 +84,12 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
 }
 
 
-pub fn create_writer(file: &str) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
+pub fn create_writer(file: &str, compression_format: &str) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
-    let writer: Box<dyn std::io::Write> = match path.extension().and_then(|ext| ext.to_str()) {
-        Some("gz") => Box::new(GzEncoder::new(file, Compression::default())),
-        Some("bgz") => Box::new(
+    let writer: Box<dyn std::io::Write> = match compression_format {
+        "gzip" => Box::new(GzEncoder::new(file, Compression::default())),
+        "bgzf" => Box::new(
             ParCompressBuilder::<Bgzf>::new().from_writer(
                 GzEncoder::new(file, Compression::default())
             )

@@ -3,9 +3,7 @@ mod errors;
 mod extract;
 mod pattern;
 
-
 use rayon::prelude::*;
-
 use seq_io::fastq::{Record, RecordSet};
 
 use extract::{BarcodeParser, BarcodeType};
@@ -20,14 +18,36 @@ pub fn run(
     max_memory: Option<usize>,
     threads: Option<usize>,
     rc_barcodes: Option<bool>,
-    max_error: Option<usize>
+    max_error: Option<usize>,
+    compression_format: String
 ) {
     let max_error = max_error.unwrap_or(1);
     let threads = threads.unwrap_or(1);
     let rc_barcodes = rc_barcodes.unwrap_or(false);
     match (pattern1, pattern2) {
-        (Some(pattern1), Some(pattern2)) => process_pe_fastq(read1, read2.unwrap(), pattern1, pattern2, out_read1, out_read2.unwrap(), max_memory, threads, rc_barcodes, max_error),
-        (Some(pattern1), None) => process_se_fastq(read1, pattern1, out_read1, max_memory, threads, rc_barcodes, max_error),
+        (Some(pattern1), Some(pattern2)) => process_pe_fastq(
+            read1, 
+            read2.unwrap(),
+            pattern1,
+            pattern2,
+            out_read1,
+            out_read2.unwrap(),
+            max_memory,
+            threads,
+            rc_barcodes,
+            max_error,
+            compression_format
+        ),
+        (Some(pattern1), None) => process_se_fastq(
+            read1,
+            pattern1,
+            out_read1,
+            max_memory,
+            threads,
+            rc_barcodes,
+            max_error,
+            compression_format
+        ),
         (None, _) => todo!()
     }
 }
@@ -39,12 +59,13 @@ fn process_se_fastq(
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
-    max_error: usize
+    max_error: usize,
+    compression_format: String
 ) {
     let barcode = BarcodeParser::new(&pattern, &rc_barcodes, max_error).expect("REASON");
 
     let mut reader = io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read).expect("Failed to create writer");
+    let writer = io::create_writer(&out_read, &compression_format).expect("Failed to create writer");
 
     loop {
         let mut record_set = RecordSet::default();
@@ -102,7 +123,8 @@ fn process_pe_fastq(
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
-    max_error: usize
+    max_error: usize,
+    compression_format: String
 ) {
     let barcode1 = BarcodeParser::new(&pattern1, &rc_barcodes, max_error).expect("REASON");
     let barcode2 = BarcodeParser::new(&pattern2, &rc_barcodes, max_error).expect("REASON");
@@ -111,8 +133,8 @@ fn process_pe_fastq(
     let mut reader1 = io::create_reader(&read1, threads, max_memory).expect("Failed to create reader");
     let mut reader2 = io::create_reader(&read2, threads, max_memory).expect("Failed to create reader");
 
-    let writer1 = io::create_writer(&out_read1).expect("Failed to create writer");
-    let writer2 = io::create_writer(&out_read2).expect("Failed to create writer");
+    let writer1 = io::create_writer(&out_read1, &compression_format).expect("Failed to create writer");
+    let writer2 = io::create_writer(&out_read2, &compression_format).expect("Failed to create writer");
 
 
     loop {

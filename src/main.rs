@@ -15,7 +15,8 @@ fn main() {
             max_memory,
             threads,
             rc_barcodes,
-            max_error
+            max_error,
+            compression_format
         } => {
             extract::run(
                 read1.to_string(),
@@ -27,7 +28,8 @@ fn main() {
                 max_memory.clone(),
                 threads.clone(),
                 rc_barcodes.clone(),
-                max_error.clone()
+                max_error.clone(),
+                compression_format.clone()
             );
         }
     }
