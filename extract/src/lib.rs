@@ -4,7 +4,7 @@ mod extract;
 mod pattern;
 
 use rayon::prelude::*;
-use seq_io::fastq::{Record, RecordSet};
+use seq_io::fastq::{OwnedRecord, Record, RecordSet};
 
 use extract::{BarcodeParser, BarcodeType};
 
@@ -16,29 +16,52 @@ pub fn run(
     out_read1: String, 
     out_read2: Option<String>,
     max_memory: Option<usize>,
-    threads: Option<usize>,
-    rc_barcodes: Option<bool>,
-    max_error: Option<usize>,
+    threads: usize,
+    rc_barcodes: bool,
+    max_error: usize,
     compression_format: String
 ) {
-    let max_error = max_error.unwrap_or(1);
-    let threads = threads.unwrap_or(1);
-    let rc_barcodes = rc_barcodes.unwrap_or(false);
-    match (pattern1, pattern2) {
-        (Some(pattern1), Some(pattern2)) => process_pe_fastq(
+    match (read2, out_read2, pattern1, pattern2) {
+        (Some(read2), Some(out_read2), Some(pattern1), Some(pattern2)) => process_pe_fastq(
             read1, 
-            read2.unwrap(),
-            pattern1,
-            pattern2,
+            read2,
+            Some(pattern1),
+            Some(pattern2),
             out_read1,
-            out_read2.unwrap(),
+            out_read2,
             max_memory,
             threads,
             rc_barcodes,
             max_error,
             compression_format
         ),
-        (Some(pattern1), None) => process_se_fastq(
+        (Some(read2), Some(out_read2), None, Some(pattern2)) => process_pe_fastq(
+            read1, 
+            read2,
+            None,
+            Some(pattern2),
+            out_read1,
+            out_read2,
+            max_memory,
+            threads,
+            rc_barcodes,
+            max_error,
+            compression_format
+        ),
+        (Some(read2), Some(out_read2), Some(pattern1), None) => process_pe_fastq(
+            read1, 
+            read2,
+            Some(pattern1),
+            None,
+            out_read1,
+            out_read2,
+            max_memory,
+            threads,
+            rc_barcodes,
+            max_error,
+            compression_format
+        ),
+        (None, None, Some(pattern1), None) => process_se_fastq(
             read1,
             pattern1,
             out_read1,
@@ -48,7 +71,7 @@ pub fn run(
             max_error,
             compression_format
         ),
-        (None, _) => todo!()
+        _ => todo!()
     }
 }
 
@@ -62,7 +85,7 @@ fn process_se_fastq(
     max_error: usize,
     compression_format: String
 ) {
-    let barcode = BarcodeParser::new(&pattern, &rc_barcodes, max_error).expect("REASON");
+    let barcode = BarcodeParser::new(&pattern, max_error).expect("REASON");
 
     let mut reader = io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
     let writer = io::create_writer(&out_read, &compression_format).expect("Failed to create writer");
@@ -116,8 +139,8 @@ fn process_se_fastq(
 fn process_pe_fastq(
     read1: String,
     read2: String,
-    pattern1: String,
-    pattern2: String,
+    pattern1: Option<String>,
+    pattern2: Option<String>,
     out_read1: String,
     out_read2: String,
     max_memory: Option<usize>,
@@ -126,8 +149,13 @@ fn process_pe_fastq(
     max_error: usize,
     compression_format: String
 ) {
-    let barcode1 = BarcodeParser::new(&pattern1, &rc_barcodes, max_error).expect("REASON");
-    let barcode2 = BarcodeParser::new(&pattern2, &rc_barcodes, max_error).expect("REASON");
+    let barcode1 = pattern1
+        .as_ref()
+        .map(|pat| BarcodeParser::new(pat, max_error).expect("Failed to create barcode parser for pattern1"));
+    
+    let barcode2 = pattern2
+        .as_ref()
+        .map(|pat| BarcodeParser::new(pat, max_error).expect("Failed to create barcode parser for pattern2"));
 
     let mut reader1 = io::create_reader(&read1, threads, max_memory)
         .expect("Failed to read input forward reads");
@@ -146,7 +174,7 @@ fn process_pe_fastq(
         let filled_set1 = reader1.read_record_set(&mut record_set1);
         let filled_set2 = reader2.read_record_set(&mut record_set2);
 
-        if filled_set1.is_none() | filled_set2.is_none() {
+        if filled_set1.is_none() || filled_set2.is_none() {
             break;
         } else {
             let records1: Vec<seq_io::fastq::RefRecord> = record_set1.into_iter().collect::<Vec<_>>();
@@ -156,34 +184,74 @@ fn process_pe_fastq(
             .par_iter()
             .zip(records2.par_iter())
             .filter_map(|(record1, record2)| {
-                let read1_match = barcode1.search_in_single_read(&record1.seq());
-                let read2_match = barcode2.search_in_single_read(&record2.seq());
+                let read1_match = barcode1.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&record1.seq()).map(Some));
+                let read2_match = barcode2.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&record2.seq()).map(Some));
 
-                // Handle read1 match
                 let read1_seq_rc;
-                let read1_match = match read1_match {
-                    Ok(matched_record) => Ok(matched_record),
-                    Err(_) => {
-                        read1_seq_rc = extract::get_reverse_complement(record1.seq());
-                        barcode1.search_in_single_read(&read1_seq_rc)
-                    }
+                let read1_match = if read1_match.is_err() && rc_barcodes {
+                    read1_seq_rc = extract::get_reverse_complement(record1.seq());
+                    barcode1.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&read1_seq_rc).map(Some))
+                } else {
+                    read1_match
                 };
 
-                // Handle read2 match
                 let read2_seq_rc;
-                let read2_match = match read2_match {
-                    Ok(matched_record) => Ok(matched_record),
-                    Err(_) => {
-                        read2_seq_rc = extract::get_reverse_complement(record2.seq());
-                        barcode1.search_in_single_read(&read2_seq_rc)
-                    }
+                let read2_match = if read2_match.is_err() && rc_barcodes {
+                    read2_seq_rc = extract::get_reverse_complement(record2.seq());
+                    barcode2.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&read2_seq_rc).map(Some))
+                } else {
+                    read2_match
                 };
 
-                // Replace reads and check the result
-                match extract::replace_reads(record1, record2, read1_match, read2_match) {
-                    Ok((record1, record2)) => Some((record1, record2)),
+                let new_record1 = match read1_match {
+                    Ok(Some(match_val)) => {
+                        Some(BarcodeParser::cut_from_read_seq(
+                            &BarcodeType::UMI.to_string(),
+                            match_val,
+                            record1).unwrap())
+                    },
+                    Ok(None) => Some(OwnedRecord {
+                        head: record1.head().to_vec(),
+                        seq: record1.seq().to_vec(),
+                        qual: record1.qual().to_vec(),
+                    }),
                     Err(_) => None,
+                };
+
+                let new_record2 = match read2_match {
+                    Ok(Some(match_val)) => {
+                        Some(BarcodeParser::cut_from_read_seq(
+                            &BarcodeType::UMI.to_string(),
+                            match_val,
+                            record2).unwrap())
+                    },
+                    Ok(None) => Some(OwnedRecord {
+                        head: record2.head().to_vec(),
+                        seq: record2.seq().to_vec(),
+                        qual: record2.qual().to_vec(),
+                    }),
+                    Err(_) => None,
+                };
+
+                match (new_record1, new_record2) {
+                    (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
+                    (None, Some(new_record1)) => Some((OwnedRecord {
+                        head: record1.head().to_vec(),
+                        seq: record1.seq().to_vec(),
+                        qual: record1.qual().to_vec()
+                    }, new_record1)),
+                    (Some(new_record1), None) => Some((new_record1, OwnedRecord {
+                        head: record2.head().to_vec(),
+                        seq: record2.seq().to_vec(),
+                        qual: record2.qual().to_vec()
+                    })),
+                    (None, None) => None,
                 }
+
+                // match extract::replace_reads(record1, record2, read1_match, read2_match) {
+                //     Ok((record1, record2)) => Some((record1, record2)),
+                //     Err(_) => None,
+                // }                
             })
             .collect();
 

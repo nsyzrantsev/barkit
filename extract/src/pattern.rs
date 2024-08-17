@@ -2,7 +2,8 @@ use std::mem::size_of;
 
 use fancy_regex::Regex;
 
-const PATTERN_REGEX: &str = r"(?<!\[)\b[ATGCNatgcn]+\b(?!\])";
+const SUPPORTED_NUCLEOTIDES: &str = "ATGCN";
+const ADAPTER_PATTERN_REGEX: &str = r"(?i)(?<!\[)\b[ATGCN]+\b(?!\])";
 
 pub fn generate_sequences_with_pcr_errors(string: &str, error_num: &usize) -> Vec<String> {
     if string.len() == 1 || *error_num == 0 {
@@ -30,7 +31,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, error_num: &usize) -> Ve
         let mut s = String::new();
         for idx in 0..num_chars {
             if (permutation_mask & (1 << idx)) == 0 {
-                s.push_str("[ATGCN]")
+                s.push_str(SUPPORTED_NUCLEOTIDES)
             } else {
                 s.push(upper[idx])
             }
@@ -45,7 +46,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, error_num: &usize) -> Ve
 
 pub fn create_fuzzy(pattern: &str, max_error: &usize) -> String {
 
-    let regex_pattern = Regex::new(PATTERN_REGEX).unwrap();
+    let regex_pattern = Regex::new(ADAPTER_PATTERN_REGEX).unwrap();
 
     let mut result = String::new();
     let mut last_end = 0;

@@ -34,7 +34,7 @@ pub enum Commands {
         pattern1: Option<String>,
 
         /// barcode pattern of reverse reads
-        #[arg(short='P', long, requires = "pattern1")]
+        #[arg(short='P', long, requires = "read2")]
         pattern2: Option<String>,
 
         /// max memory (RAM) usage in megabytes (MB)
@@ -43,15 +43,15 @@ pub enum Commands {
 
         /// the approximate number of threads to use.
         #[arg(short='t', long, default_value = "1")]
-        threads: Option<usize>,
+        threads: usize,
 
         /// searches for both barcode pattern in reverse complement
         #[arg(short='r', long, action=ArgAction::SetTrue)]
-        rc_barcodes: Option<bool>,
+        rc_barcodes: bool,
 
         /// max error (mistmatch) between provided pattern and read sequence
         #[arg(short='e', long, default_value = "1")]
-        max_error: Option<usize>,
+        max_error: usize,
 
         /// compression format for output FASTQ files
         #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf"])]

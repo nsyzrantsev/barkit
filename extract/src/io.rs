@@ -90,9 +90,7 @@ pub fn create_writer(file: &str, compression_format: &str) -> Result<Arc<Mutex<B
     let writer: Box<dyn std::io::Write> = match compression_format {
         "gzip" => Box::new(GzEncoder::new(file, Compression::default())),
         "bgzf" => Box::new(
-            ParCompressBuilder::<Bgzf>::new().from_writer(
-                GzEncoder::new(file, Compression::default())
-            )
+            ParCompressBuilder::<Bgzf>::new().from_writer(file)
         ),
         _ => Box::new(file),
     };
