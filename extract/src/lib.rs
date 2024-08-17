@@ -3,6 +3,8 @@ mod errors;
 mod extract;
 mod pattern;
 
+use std::io::Write;
+
 use rayon::prelude::*;
 use seq_io::fastq::{OwnedRecord, Record, RecordSet};
 
@@ -22,7 +24,7 @@ pub fn run(
     compression_format: String
 ) {
     match (read2, out_read2, pattern1, pattern2) {
-        (Some(read2), Some(out_read2), Some(pattern1), Some(pattern2)) => process_pe_fastq(
+        (Some(read2), Some(out_read2), Some(pattern1), Some(pattern2)) => process_pair_end_fastq(
             read1, 
             read2,
             Some(pattern1),
@@ -35,7 +37,7 @@ pub fn run(
             max_error,
             compression_format
         ),
-        (Some(read2), Some(out_read2), None, Some(pattern2)) => process_pe_fastq(
+        (Some(read2), Some(out_read2), None, Some(pattern2)) => process_pair_end_fastq(
             read1, 
             read2,
             None,
@@ -48,7 +50,7 @@ pub fn run(
             max_error,
             compression_format
         ),
-        (Some(read2), Some(out_read2), Some(pattern1), None) => process_pe_fastq(
+        (Some(read2), Some(out_read2), Some(pattern1), None) => process_pair_end_fastq(
             read1, 
             read2,
             Some(pattern1),
@@ -61,7 +63,7 @@ pub fn run(
             max_error,
             compression_format
         ),
-        (None, None, Some(pattern1), None) => process_se_fastq(
+        (None, None, Some(pattern1), None) => process_single_end_fastq(
             read1,
             pattern1,
             out_read1,
@@ -75,7 +77,7 @@ pub fn run(
     }
 }
 
-fn process_se_fastq(
+fn process_single_end_fastq(
     read: String,
     pattern: String,
     out_read: String,
@@ -136,7 +138,7 @@ fn process_se_fastq(
 }
 
 
-fn process_pe_fastq(
+fn process_pair_end_fastq(
     read1: String,
     read2: String,
     pattern1: Option<String>,
@@ -203,35 +205,8 @@ fn process_pe_fastq(
                     read2_match
                 };
 
-                let new_record1 = match read1_match {
-                    Ok(Some(match_val)) => {
-                        Some(BarcodeParser::cut_from_read_seq(
-                            &BarcodeType::UMI.to_string(),
-                            match_val,
-                            record1).unwrap())
-                    },
-                    Ok(None) => Some(OwnedRecord {
-                        head: record1.head().to_vec(),
-                        seq: record1.seq().to_vec(),
-                        qual: record1.qual().to_vec(),
-                    }),
-                    Err(_) => None,
-                };
-
-                let new_record2 = match read2_match {
-                    Ok(Some(match_val)) => {
-                        Some(BarcodeParser::cut_from_read_seq(
-                            &BarcodeType::UMI.to_string(),
-                            match_val,
-                            record2).unwrap())
-                    },
-                    Ok(None) => Some(OwnedRecord {
-                        head: record2.head().to_vec(),
-                        seq: record2.seq().to_vec(),
-                        qual: record2.qual().to_vec(),
-                    }),
-                    Err(_) => None,
-                };
+                let new_record1 = BarcodeParser::create_new_read(read1_match, record1);
+                let new_record2 = BarcodeParser::create_new_read(read2_match, record2);
 
                 match (new_record1, new_record2) {
                     (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),

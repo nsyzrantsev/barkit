@@ -14,9 +14,10 @@ use gzp::{
 
 use crate::errors;
 
-const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b]; // a magic number in the header of GZIP files
-const LZ4_MAGIC_BYTES: [u8; 4] = [0x04, 0x22, 0x4d, 0x18]; // a magic number in the header of LZ4 files
-const BGZIP_MAGIC_BYTES: [u8; 4] = [0x42, 0x43, 0x02, 0x00]; // a magic number in the header of BGZIP files
+// magic numbers in the header of each file type
+const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
+const LZ4_MAGIC_BYTES: [u8; 4] = [0x04, 0x22, 0x4d, 0x18];
+const BGZIP_MAGIC_BYTES: [u8; 4] = [0x42, 0x43, 0x02, 0x00];
 
 const WRITE_BUFFER_SIZE: usize = 512 * 1024 * 1024; // 64 KB buffer size, you can adjust this size as needed
 

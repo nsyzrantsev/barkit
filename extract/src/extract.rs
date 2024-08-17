@@ -79,6 +79,23 @@ impl BarcodeParser {
         })
     }
 
+    pub fn create_new_read(read_match: Result<Option<Match>, Error>, record: &RefRecord) -> Option<seq_io::fastq::OwnedRecord> {
+        match read_match {
+            Ok(Some(match_val)) => {
+                Some(BarcodeParser::cut_from_read_seq(
+                    &BarcodeType::UMI.to_string(),
+                    match_val,
+                    record).unwrap())
+            },
+            Ok(None) => Some(OwnedRecord {
+                head: record.head().to_vec(),
+                seq: record.seq().to_vec(),
+                qual: record.qual().to_vec(),
+            }),
+            Err(_) => None,
+        }
+    }
+
     fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
         let read_header = read.head();
         let barcode_seq = &read.seq()[start..end];
@@ -93,8 +110,7 @@ impl BarcodeParser {
     }
 }
 
-
-pub(crate) fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
+pub fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
     sequence
         .iter()
         .rev()
