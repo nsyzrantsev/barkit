@@ -10,19 +10,16 @@ fn main() {
             read2,
             out_read1,
             out_read2,
-            pattern1,
-            pattern2,
             max_memory,
             threads,
             rc_barcodes,
             max_error,
-            compression_format
-        } => {
+            compression_format, patterns } => {
             extract::run(
                 read1.to_string(),
                 read2.clone(), 
-                pattern1.clone(),
-                pattern2.clone(),
+                patterns.pattern1.clone(),
+                patterns.pattern2.clone(),
                 out_read1.to_string(),
                 out_read2.clone(),
                 max_memory.clone(),

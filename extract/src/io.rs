@@ -1,11 +1,11 @@
 use std::path::Path;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read};
-use std::sync::{Arc, Mutex};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use gzp::par::compress::ParCompressBuilder;
 use lz4::Decoder;
-use seq_io::fastq::Reader;
+use seq_io::fastq::{OwnedRecord, Reader};
 use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
 
 use gzp::{
@@ -84,7 +84,6 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
     }
 }
 
-
 pub fn create_writer(file: &str, compression_format: &str) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
@@ -96,4 +95,26 @@ pub fn create_writer(file: &str, compression_format: &str) -> Result<Arc<Mutex<B
         _ => Box::new(file),
     };
     Ok(Arc::new(Mutex::new(BufWriter::with_capacity(WRITE_BUFFER_SIZE, writer))))
+}
+
+pub fn save_pair_end_reads_to_file(
+    result_read_pairs: Vec<(OwnedRecord, OwnedRecord)>, 
+    mut writer1: MutexGuard<BufWriter<Box<dyn Write>>>, 
+    mut writer2: MutexGuard<BufWriter<Box<dyn Write>>>
+) {
+    for (read1_record, read2_record) in result_read_pairs {
+        let _ = seq_io::fastq::write_to(
+            &mut *writer1,
+            &read1_record.head,
+            &read1_record.seq,
+            &read1_record.qual    
+        );
+
+        let _ = seq_io::fastq::write_to(
+            &mut *writer2,
+            &read2_record.head,
+            &read2_record.seq,
+            &read2_record.qual    
+        );
+    }
 }

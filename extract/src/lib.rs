@@ -3,10 +3,8 @@ mod errors;
 mod extract;
 mod pattern;
 
-use std::io::Write;
-
 use rayon::prelude::*;
-use seq_io::fastq::{OwnedRecord, Record, RecordSet};
+use seq_io::fastq::{Record, RecordSet};
 
 use extract::{BarcodeParser, BarcodeType};
 
@@ -24,37 +22,11 @@ pub fn run(
     compression_format: String
 ) {
     match (read2, out_read2, pattern1, pattern2) {
-        (Some(read2), Some(out_read2), Some(pattern1), Some(pattern2)) => process_pair_end_fastq(
+        (Some(read2), Some(out_read2), pattern1, pattern2) => process_pair_end_fastq(
             read1, 
             read2,
-            Some(pattern1),
-            Some(pattern2),
-            out_read1,
-            out_read2,
-            max_memory,
-            threads,
-            rc_barcodes,
-            max_error,
-            compression_format
-        ),
-        (Some(read2), Some(out_read2), None, Some(pattern2)) => process_pair_end_fastq(
-            read1, 
-            read2,
-            None,
-            Some(pattern2),
-            out_read1,
-            out_read2,
-            max_memory,
-            threads,
-            rc_barcodes,
-            max_error,
-            compression_format
-        ),
-        (Some(read2), Some(out_read2), Some(pattern1), None) => process_pair_end_fastq(
-            read1, 
-            read2,
-            Some(pattern1),
-            None,
+            pattern1,
+            pattern2,
             out_read1,
             out_read2,
             max_memory,
@@ -73,7 +45,7 @@ pub fn run(
             max_error,
             compression_format
         ),
-        _ => todo!()
+        _ => todo!(),
     }
 }
 
@@ -205,48 +177,21 @@ fn process_pair_end_fastq(
                     read2_match
                 };
 
-                let new_record1 = BarcodeParser::create_new_read(read1_match, record1);
-                let new_record2 = BarcodeParser::create_new_read(read2_match, record2);
+                let new_record1 = BarcodeParser::create_new_read(read1_match.clone(), record1);
+                let new_record2 = BarcodeParser::create_new_read(read2_match.clone(), record2);
 
                 match (new_record1, new_record2) {
                     (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
-                    (None, Some(new_record1)) => Some((OwnedRecord {
-                        head: record1.head().to_vec(),
-                        seq: record1.seq().to_vec(),
-                        qual: record1.qual().to_vec()
-                    }, new_record1)),
-                    (Some(new_record1), None) => Some((new_record1, OwnedRecord {
-                        head: record2.head().to_vec(),
-                        seq: record2.seq().to_vec(),
-                        qual: record2.qual().to_vec()
-                    })),
+                    (None, Some(new_record1)) => Some((record1.to_owned_record(), new_record1)),
+                    (Some(new_record1), None) => Some((new_record1, record2.to_owned_record())),
                     (None, None) => None,
                 }
-
-                // match extract::replace_reads(record1, record2, read1_match, read2_match) {
-                //     Ok((record1, record2)) => Some((record1, record2)),
-                //     Err(_) => None,
-                // }                
             })
             .collect();
 
-            let mut writer1 = writer1.lock().unwrap();
-            let mut writer2 = writer2.lock().unwrap();
-            for (read1_record, read2_record) in result_read_pairs {
-                let _ = seq_io::fastq::write_to(
-                    &mut *writer1,
-                    &read1_record.head(),
-                    &read1_record.seq(),
-                    &read1_record.qual()    
-                );
-
-                let _ = seq_io::fastq::write_to(
-                    &mut *writer2,
-                    &read2_record.head(),
-                    &read2_record.seq(),
-                    &read2_record.qual()    
-                );
-            }
+            let writer1 = writer1.lock().unwrap();
+            let writer2 = writer2.lock().unwrap();
+            io::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
         }
     }
 }

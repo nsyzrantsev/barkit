@@ -118,16 +118,28 @@ pub fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-pub fn replace_reads<'a>(
-    read1: &RefRecord<'a>, 
-    read2: &RefRecord<'a>, 
+pub fn replace_reads(
+    read1: OwnedRecord, 
+    read2: OwnedRecord, 
     read1_match: Result<Option<Match>, Error>,
     read2_match: Result<Option<Match>, Error>
-) -> Result<(RefRecord<'a>, RefRecord<'a>), Error> {        
-    match (read1_match, read2_match) {
-        (Ok(_), _) => Ok((read1.clone(), read2.clone())),
-        (Err(_), Ok(_)) => Ok((read2.clone(), read1.clone())),
+) -> Option<(OwnedRecord, OwnedRecord)> {
+    let replace_result = match (read1_match, read2_match) {
+        (Ok(_), _) => Ok((read1, read2)),
+        (Err(_), Ok(_)) => Ok((OwnedRecord {
+            head: read1.head,
+            seq: read2.seq,
+            qual: read2.qual
+        }, OwnedRecord {
+            head: read2.head,
+            seq: read1.seq,
+            qual: read1.qual
+        })),
         _ => Err(Error::BothReadsNotMatch),
+    };
+    match replace_result {
+        Ok((record1, record2)) => Some((record1, record2)),
+        Err(_) => None,
     }
 }
 
