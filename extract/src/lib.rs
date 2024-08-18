@@ -65,8 +65,10 @@ fn process_single_end_fastq(
 ) {
     let barcode = BarcodeParser::new(&pattern, max_error).expect("REASON");
 
-    let mut reader = io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read, &compression_format, threads).expect("Failed to create writer");
+    let mut reader = io::create_reader(&read, threads, max_memory)
+        .expect("Failed to create reader");
+    let writer = io::create_writer(&out_read, &compression_format, threads)
+        .expect("Failed to create writer");
 
     loop {
         let mut record_set = RecordSet::default();
@@ -81,7 +83,7 @@ fn process_single_end_fastq(
             .collect::<Vec<_>>()
             .par_iter()
             .filter_map(|record| {
-                let read_captures = barcode.get_captures(&record.seq());
+                let read_captures: Result<regex::bytes::Captures, errors::Error> = barcode.get_captures(&record.seq());
                 let read_seq_rc: Vec<u8>;
                 let read_captures = if read_captures.is_err() && rc_barcodes {
                     read_seq_rc = extract::get_reverse_complement(record.seq());
@@ -89,23 +91,11 @@ fn process_single_end_fastq(
                 } else {
                     read_captures
                 };
-                match (read_captures, skip_trimming) {
-                    (Ok(captures), true) => {
-                        Some(BarcodeParser::get_new_read_with_adapter_trimming(
-                            &BarcodeType::UMI.to_string(),
-                            captures,
-                            record).ok()?
-                        )
-                    },
-                    (Ok(captures), false) => {
-                        Some(BarcodeParser::get_new_read_without_adapter_trimming(
-                            &BarcodeType::UMI.to_string(),
-                            captures,
-                            record).ok()?
-                        )
-                    },
-                    (Err(_), _) => None
-                }
+                BarcodeParser::create_new_read(
+                    read_captures.map(Some),
+                    record,
+                    skip_trimming
+                )
             }).collect();
             
             let writer = writer.lock().unwrap();
@@ -164,8 +154,12 @@ fn process_pair_end_fastq(
             .par_iter()
             .zip(records2.par_iter())
             .filter_map(|(record1, record2)| {
-                let read1_captures = barcode1.as_ref().map_or(Ok(None), |b| b.get_captures(&record1.seq()).map(Some));
-                let read2_captures = barcode2.as_ref().map_or(Ok(None), |b| b.get_captures(&record2.seq()).map(Some));
+                let read1_captures = barcode1
+                    .as_ref()
+                    .map_or(Ok(None), |b| b.get_captures(&record1.seq()).map(Some));
+                let read2_captures = barcode2
+                    .as_ref()
+                    .map_or(Ok(None), |b| b.get_captures(&record2.seq()).map(Some));
 
                 let read1_seq_rc;
                 let read1_captures = if read1_captures.is_err() && rc_barcodes {
@@ -182,13 +176,21 @@ fn process_pair_end_fastq(
                     read2_seq_rc = extract::get_reverse_complement(record2.seq());
                     barcode2
                         .as_ref()
-                            .map_or(Ok(None), |b| b.get_captures(&read2_seq_rc).map(Some))
+                        .map_or(Ok(None), |b| b.get_captures(&read2_seq_rc).map(Some))
                 } else {
                     read2_captures
                 };
 
-                let new_record1 = BarcodeParser::create_new_read(read1_captures, record1, skip_trimming);
-                let new_record2 = BarcodeParser::create_new_read(read2_captures, record2, skip_trimming);
+                let new_record1 = BarcodeParser::create_new_read(
+                    read1_captures, 
+                    record1,
+                    skip_trimming
+                );
+                let new_record2 = BarcodeParser::create_new_read(
+                    read2_captures,
+                    record2,
+                    skip_trimming
+                );
 
                 match (new_record1, new_record2) {
                     (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
