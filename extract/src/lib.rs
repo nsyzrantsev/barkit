@@ -77,11 +77,11 @@ fn process_single_end_fastq(
             .collect::<Vec<_>>()
             .par_iter()
             .filter_map(|record| {
-                let matched_read = barcode.search_in_single_read(&record.seq());
+                let matched_read = barcode.get_umi_match(&record.seq());
                 let read_seq_rc: Vec<u8>;
                 let matched_read = if matched_read.is_err() && rc_barcodes {
                     read_seq_rc = extract::get_reverse_complement(record.seq());
-                    barcode.search_in_single_read(&read_seq_rc)
+                    barcode.get_umi_match(&read_seq_rc)
                 } else {
                     matched_read
                 };
@@ -158,13 +158,13 @@ fn process_pair_end_fastq(
             .par_iter()
             .zip(records2.par_iter())
             .filter_map(|(record1, record2)| {
-                let read1_match = barcode1.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&record1.seq()).map(Some));
-                let read2_match = barcode2.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&record2.seq()).map(Some));
+                let read1_match = barcode1.as_ref().map_or(Ok(None), |b| b.get_umi_match(&record1.seq()).map(Some));
+                let read2_match = barcode2.as_ref().map_or(Ok(None), |b| b.get_umi_match(&record2.seq()).map(Some));
 
                 let read1_seq_rc;
                 let read1_match = if read1_match.is_err() && rc_barcodes {
                     read1_seq_rc = extract::get_reverse_complement(record1.seq());
-                    barcode1.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&read1_seq_rc).map(Some))
+                    barcode1.as_ref().map_or(Ok(None), |b| b.get_umi_match(&read1_seq_rc).map(Some))
                 } else {
                     read1_match
                 };
@@ -172,7 +172,7 @@ fn process_pair_end_fastq(
                 let read2_seq_rc;
                 let read2_match = if read2_match.is_err() && rc_barcodes {
                     read2_seq_rc = extract::get_reverse_complement(record2.seq());
-                    barcode2.as_ref().map_or(Ok(None), |b| b.search_in_single_read(&read2_seq_rc).map(Some))
+                    barcode2.as_ref().map_or(Ok(None), |b| b.get_umi_match(&read2_seq_rc).map(Some))
                 } else {
                     read2_match
                 };

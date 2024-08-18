@@ -36,7 +36,7 @@ pub enum BarcodeType {
 impl BarcodeType {
     pub fn to_string(&self) -> String {
         match *self {
-            BarcodeType::UMI => "UMI".to_string(),
+            BarcodeType::UMI => "UMI".to_string()
         }
     }
 }
@@ -54,15 +54,17 @@ impl BarcodeParser {
         })
     }
 
-    fn capture_barcodes<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures<'a>, Error> {
-        let captures = self.regex.captures(read_seq);
-        captures.ok_or(Error::PatternNotMatched)
-    }
 
-    pub fn search_in_single_read<'a>(&'a self, read_seq: &'a[u8]) -> Result<Match, Error> {
-        let captures = self.capture_barcodes(read_seq)?;
-    
-        captures.name(&BarcodeType::UMI.to_string()).ok_or(Error::UMIPatternNotFound)
+    pub fn get_umi_match<'a>(&'a self, read_seq: &'a [u8]) -> Result<Match, Error> {
+        match self.regex.captures(read_seq) {
+            Some(capture) => {
+                let umi_capture_group_name = BarcodeType::UMI.to_string();
+                capture
+                    .name(&umi_capture_group_name)
+                    .ok_or(Error::BarcodeCaptureGroupNotFound(umi_capture_group_name))
+            }
+            None => Err(Error::PatternNotMatched)
+        }
     }
 
     pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
