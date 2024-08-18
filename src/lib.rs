@@ -44,12 +44,16 @@ pub enum Commands {
         #[arg(short='r', long, action=ArgAction::SetTrue)]
         rc_barcodes: bool,
 
+        /// skip trimming adapter sequence from the read
+        #[arg(short='s', long, action=ArgAction::SetTrue)]
+        skip_trimming: bool,
+
         /// max error (mistmatch) between provided pattern and read sequence
         #[arg(short='e', long, default_value = "1")]
         max_error: usize,
 
         /// compression format for output FASTQ files
-        #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf"])]
+        #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf", "no"])]
         compression_format: String,
     },
 }

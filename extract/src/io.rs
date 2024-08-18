@@ -58,7 +58,7 @@ pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megaby
         CompressionType::LZ4 => Box::new(Decoder::new(file)?),
         CompressionType::BGZF => Box::new(
             ParDecompressBuilder::<Bgzf>::new()
-            .num_threads(threads_num).expect("REASON")
+            .num_threads(threads_num).expect("Provided unexpected number of threads")
             .from_reader(BufReader::with_capacity(
                 BUFSIZE,
                 file
@@ -84,13 +84,15 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
     }
 }
 
-pub fn create_writer(file: &str, compression_format: &str) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
+pub fn create_writer(file: &str, compression_format: &str, threads_num: usize) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
     let writer: Box<dyn std::io::Write> = match compression_format {
         "gzip" => Box::new(GzEncoder::new(file, Compression::default())),
         "bgzf" => Box::new(
-            ParCompressBuilder::<Bgzf>::new().from_writer(file)
+            ParCompressBuilder::<Bgzf>::new()
+            .num_threads(threads_num).expect("Provided unexpected number of threads")
+            .from_writer(file)
         ),
         _ => Box::new(file),
     };
@@ -115,6 +117,20 @@ pub fn save_pair_end_reads_to_file(
             &read2_record.head,
             &read2_record.seq,
             &read2_record.qual    
+        );
+    }
+}
+
+pub fn save_single_end_reads_to_file(
+    result_reads: Vec<OwnedRecord>,
+    mut writer: MutexGuard<BufWriter<Box<dyn Write>>>
+) {
+    for read_record in result_reads {
+        let _ = seq_io::fastq::write_to(
+            &mut *writer,
+            &read_record.head,
+            &read_record.seq,
+            &read_record.qual
         );
     }
 }

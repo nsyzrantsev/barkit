@@ -55,50 +55,87 @@ impl BarcodeParser {
     }
 
 
-    pub fn get_umi_match<'a>(&'a self, read_seq: &'a [u8]) -> Result<Match, Error> {
+    pub fn get_captures<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures, Error> {
         match self.regex.captures(read_seq) {
-            Some(capture) => {
-                let umi_capture_group_name = BarcodeType::UMI.to_string();
-                capture
-                    .name(&umi_capture_group_name)
-                    .ok_or(Error::BarcodeCaptureGroupNotFound(umi_capture_group_name))
-            }
+            Some(capture) => Ok(capture),
             None => Err(Error::PatternNotMatched)
         }
     }
 
-    pub fn cut_from_read_seq(barcode_type: &str, matched_pattern: Match, read: &RefRecord) -> Result<OwnedRecord, Error> {
-        let start = matched_pattern.start();
-        let end = matched_pattern.end();
+    fn get_full_match_positions(captures: &Captures) -> Result<(usize, usize), Error> {
+        let full_match = captures
+            .get(0)
+            .ok_or(Error::BarcodeCaptureGroupNotFound("0".to_owned()))?;
+
+        Ok((full_match.start(), full_match.end()))
+    }
+
+    fn get_barcode_match_positions(barcode_name: &str, captures: &Captures) -> Result<(usize, usize), Error> {
+        let full_match = captures
+            .name(barcode_name)
+            .ok_or(Error::BarcodeCaptureGroupNotFound("0".to_owned()))?;
+
+        Ok((full_match.start(), full_match.end()))
+    }
+
+    pub fn get_new_read_with_adapter_trimming(barcode_type: &str, captures: Captures, read: &RefRecord) -> Result<OwnedRecord, Error> {
+        let (start, end) = Self::get_full_match_positions(&captures)?;
+        let (umi_start, umi_end) = Self::get_barcode_match_positions(&BarcodeType::UMI.to_string(), &captures)?;
 
         let read_seq = read.seq();
         let read_qual = read.qual();
         
         Ok(OwnedRecord {
-            head: Self::move_to_the_header(barcode_type, read, start, end)?,
+            head: Self::add_to_the_header(barcode_type, read, umi_start, umi_end)?,
             seq: [&read_seq[..start], &read_seq[end..]].concat(),
             qual: [&read_qual[..start], &read_qual[end..]].concat(),
         })
     }
 
-    pub fn create_new_read(read_match: Result<Option<Match>, Error>, record: &RefRecord) -> Option<seq_io::fastq::OwnedRecord> {
-        match read_match {
-            Ok(Some(match_val)) => {
-                Some(BarcodeParser::cut_from_read_seq(
-                    &BarcodeType::UMI.to_string(),
-                    match_val,
-                    record).unwrap())
+    pub fn get_new_read_without_adapter_trimming(barcode_name: &str, captures: Captures, record: &RefRecord) -> Result<OwnedRecord, Error> {
+        let (umi_start, umi_end) = Self::get_barcode_match_positions(
+            &BarcodeType::UMI.to_string(), 
+            &captures
+        )?;
+        Ok(OwnedRecord {
+            head: Self::add_to_the_header(
+                &barcode_name,
+                record,
+                umi_start,
+                umi_end
+            )?,
+            seq: record.seq().to_vec(),
+            qual: record.qual().to_vec(),
+        })
+    }
+
+    pub fn create_new_read(read_captures: Result<Option<Captures>, Error>, record: &RefRecord, skip_trimming: bool) -> Option<seq_io::fastq::OwnedRecord> {
+        let umi_capture_group_name = BarcodeType::UMI.to_string();
+        match (read_captures, skip_trimming) {
+            (Ok(Some(captures)), true) => {
+                Some(Self::get_new_read_with_adapter_trimming(
+                    &umi_capture_group_name,
+                    captures,
+                    record).ok()?
+                )
             },
-            Ok(None) => Some(OwnedRecord {
+            (Ok(Some(captures)), false) => {
+                Some(Self::get_new_read_without_adapter_trimming(
+                    &umi_capture_group_name,
+                    captures,
+                    record).ok()?
+                )
+            }
+            (Ok(None), _) => Some(OwnedRecord {
                 head: record.head().to_vec(),
                 seq: record.seq().to_vec(),
                 qual: record.qual().to_vec(),
             }),
-            Err(_) => None,
+            (Err(_), _) => None,
         }
     }
 
-    fn move_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
+    fn add_to_the_header(barcode_type: &str, read: &RefRecord, start: usize, end: usize) -> Result<Vec<u8>, Error> {
         let read_header = read.head();
         let barcode_seq = &read.seq()[start..end];
         let barcode_qual = &read.qual()[start..end];

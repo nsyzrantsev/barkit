@@ -13,6 +13,7 @@ fn main() {
             max_memory,
             threads,
             rc_barcodes,
+            skip_trimming,
             max_error,
             compression_format, patterns } => {
             extract::run(
@@ -25,6 +26,7 @@ fn main() {
                 max_memory.clone(),
                 threads.clone(),
                 rc_barcodes.clone(),
+                skip_trimming.clone(),
                 max_error.clone(),
                 compression_format.clone()
             );

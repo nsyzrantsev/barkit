@@ -18,6 +18,7 @@ pub fn run(
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
+    skip_trimming: bool,
     max_error: usize,
     compression_format: String
 ) {
@@ -32,6 +33,7 @@ pub fn run(
             max_memory,
             threads,
             rc_barcodes,
+            skip_trimming,
             max_error,
             compression_format
         ),
@@ -42,6 +44,7 @@ pub fn run(
             max_memory,
             threads,
             rc_barcodes,
+            skip_trimming,
             max_error,
             compression_format
         ),
@@ -56,13 +59,14 @@ fn process_single_end_fastq(
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
+    skip_trimming: bool,
     max_error: usize,
     compression_format: String
 ) {
     let barcode = BarcodeParser::new(&pattern, max_error).expect("REASON");
 
     let mut reader = io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read, &compression_format).expect("Failed to create writer");
+    let writer = io::create_writer(&out_read, &compression_format, threads).expect("Failed to create writer");
 
     loop {
         let mut record_set = RecordSet::default();
@@ -77,34 +81,35 @@ fn process_single_end_fastq(
             .collect::<Vec<_>>()
             .par_iter()
             .filter_map(|record| {
-                let matched_read = barcode.get_umi_match(&record.seq());
+                let read_captures = barcode.get_captures(&record.seq());
                 let read_seq_rc: Vec<u8>;
-                let matched_read = if matched_read.is_err() && rc_barcodes {
+                let read_captures = if read_captures.is_err() && rc_barcodes {
                     read_seq_rc = extract::get_reverse_complement(record.seq());
-                    barcode.get_umi_match(&read_seq_rc)
+                    barcode.get_captures(&read_seq_rc)
                 } else {
-                    matched_read
+                    read_captures
                 };
-                match matched_read {
-                    Ok(match_val) => {
-                        Some(BarcodeParser::cut_from_read_seq(
+                match (read_captures, skip_trimming) {
+                    (Ok(captures), true) => {
+                        Some(BarcodeParser::get_new_read_with_adapter_trimming(
                             &BarcodeType::UMI.to_string(),
-                            match_val,
-                            record).unwrap())
+                            captures,
+                            record).ok()?
+                        )
                     },
-                    Err(_) => None
+                    (Ok(captures), false) => {
+                        Some(BarcodeParser::get_new_read_without_adapter_trimming(
+                            &BarcodeType::UMI.to_string(),
+                            captures,
+                            record).ok()?
+                        )
+                    },
+                    (Err(_), _) => None
                 }
             }).collect();
             
-            let mut writer = writer.lock().unwrap();
-            for read_record in result_reads {
-                let _ = seq_io::fastq::write_to(
-                    &mut *writer,
-                    &read_record.head(),
-                    &read_record.seq(),
-                    &read_record.qual()
-                );
-            }
+            let writer = writer.lock().unwrap();
+            io::save_single_end_reads_to_file(result_reads, writer);
         }
     }
 }
@@ -120,6 +125,7 @@ fn process_pair_end_fastq(
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
+    skip_trimming: bool,
     max_error: usize,
     compression_format: String
 ) {
@@ -136,9 +142,9 @@ fn process_pair_end_fastq(
     let mut reader2 = io::create_reader(&read2, threads, max_memory)
         .expect("Failed to read input reverse reads");
 
-    let writer1 = io::create_writer(&out_read1, &compression_format)
+    let writer1 = io::create_writer(&out_read1, &compression_format, threads)
         .expect("Failed to write output forward reads");
-    let writer2 = io::create_writer(&out_read2, &compression_format)
+    let writer2 = io::create_writer(&out_read2, &compression_format ,threads)
         .expect("Failed to write output reverse reads");
 
     loop {
@@ -158,27 +164,31 @@ fn process_pair_end_fastq(
             .par_iter()
             .zip(records2.par_iter())
             .filter_map(|(record1, record2)| {
-                let read1_match = barcode1.as_ref().map_or(Ok(None), |b| b.get_umi_match(&record1.seq()).map(Some));
-                let read2_match = barcode2.as_ref().map_or(Ok(None), |b| b.get_umi_match(&record2.seq()).map(Some));
+                let read1_captures = barcode1.as_ref().map_or(Ok(None), |b| b.get_captures(&record1.seq()).map(Some));
+                let read2_captures = barcode2.as_ref().map_or(Ok(None), |b| b.get_captures(&record2.seq()).map(Some));
 
                 let read1_seq_rc;
-                let read1_match = if read1_match.is_err() && rc_barcodes {
+                let read1_captures = if read1_captures.is_err() && rc_barcodes {
                     read1_seq_rc = extract::get_reverse_complement(record1.seq());
-                    barcode1.as_ref().map_or(Ok(None), |b| b.get_umi_match(&read1_seq_rc).map(Some))
+                    barcode1
+                        .as_ref()
+                        .map_or(Ok(None), |b| b.get_captures(&read1_seq_rc).map(Some))
                 } else {
-                    read1_match
+                    read1_captures
                 };
 
                 let read2_seq_rc;
-                let read2_match = if read2_match.is_err() && rc_barcodes {
+                let read2_captures = if read2_captures.is_err() && rc_barcodes {
                     read2_seq_rc = extract::get_reverse_complement(record2.seq());
-                    barcode2.as_ref().map_or(Ok(None), |b| b.get_umi_match(&read2_seq_rc).map(Some))
+                    barcode2
+                        .as_ref()
+                            .map_or(Ok(None), |b| b.get_captures(&read2_seq_rc).map(Some))
                 } else {
-                    read2_match
+                    read2_captures
                 };
 
-                let new_record1 = BarcodeParser::create_new_read(read1_match.clone(), record1);
-                let new_record2 = BarcodeParser::create_new_read(read2_match.clone(), record2);
+                let new_record1 = BarcodeParser::create_new_read(read1_captures, record1, skip_trimming);
+                let new_record2 = BarcodeParser::create_new_read(read2_captures, record2, skip_trimming);
 
                 match (new_record1, new_record2) {
                     (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
