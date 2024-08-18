@@ -10,7 +10,7 @@ pub struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Tool to parse molecular (UMI) barcodes from FASTQ file(s)
+    /// Tool for parsing UMI barcodes from single-end or paired-end FASTQ files
     #[clap(arg_required_else_help = true)]
     Extract {
         /// (gzipped) input forward FASTQ file
