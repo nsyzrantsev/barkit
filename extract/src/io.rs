@@ -3,13 +3,14 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use gzp::par::compress::ParCompressBuilder;
 use lz4::Decoder;
 use seq_io::fastq::{OwnedRecord, Reader};
 use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
-
 use gzp::{
-    deflate::Bgzf, par::decompress::ParDecompressBuilder, BUFSIZE,
+    deflate::Bgzf, 
+    deflate::Mgzip,
+    par::decompress::ParDecompressBuilder,
+    par::compress::ParCompressBuilder
 };
 
 use crate::errors;
@@ -19,7 +20,7 @@ const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
 const LZ4_MAGIC_BYTES: [u8; 4] = [0x04, 0x22, 0x4d, 0x18];
 const BGZIP_MAGIC_BYTES: [u8; 4] = [0x42, 0x43, 0x02, 0x00];
 
-const WRITE_BUFFER_SIZE: usize = 512 * 1024 * 1024; // 64 KB buffer size, you can adjust this size as needed
+const WRITE_BUFFER_SIZE: usize = 128 * 1024 * 1024; // 128 KB buffer size, you can adjust this size as needed
 
 enum CompressionType {
     BGZF,
@@ -60,7 +61,7 @@ pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megaby
             ParDecompressBuilder::<Bgzf>::new()
             .num_threads(threads_num).expect("Provided unexpected number of threads")
             .from_reader(BufReader::with_capacity(
-                BUFSIZE,
+                buffer_size_in_bytes,
                 file
             ))),
         CompressionType::NO => Box::new(file),
@@ -91,6 +92,11 @@ pub fn create_writer(file: &str, compression_format: &str, threads_num: usize) -
         "gzip" => Box::new(GzEncoder::new(file, Compression::default())),
         "bgzf" => Box::new(
             ParCompressBuilder::<Bgzf>::new()
+            .num_threads(threads_num).expect("Provided unexpected number of threads")
+            .from_writer(file)
+        ),
+        "mgzip" => Box::new(
+            ParCompressBuilder::<Mgzip>::new()
             .num_threads(threads_num).expect("Provided unexpected number of threads")
             .from_writer(file)
         ),
