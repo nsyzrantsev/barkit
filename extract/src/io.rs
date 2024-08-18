@@ -13,7 +13,7 @@ use gzp::{
     par::compress::ParCompressBuilder
 };
 
-use crate::errors;
+use crate::error;
 
 // magic numbers in the header of each file type
 const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
@@ -48,7 +48,7 @@ fn get_fastq_compression_type(path: &Path) -> CompressionType {
     }
 }
 
-pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, errors::Error> {
+pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, error::Error> {
     let path = Path::new(&fastq_path);
     let file = File::open(&path).expect("couldn't open file");
 
@@ -70,7 +70,7 @@ pub fn create_reader(fastq_path: &str, threads_num: usize, buffer_size_in_megaby
     Ok(Reader::new(Box::new(BufReader::with_capacity(buffer_size_in_bytes, decoder))))
 }
 
-fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Result<usize, errors::Error> {
+fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Result<usize, error::Error> {
     let fastq_file_size_bytes = fastq_file.metadata()?.len() as usize;
     match max_memory {
         Some(buffer_size) => {
@@ -85,7 +85,7 @@ fn get_reader_buffer_size(fastq_file: &File, max_memory: Option<usize>) -> Resul
     }
 }
 
-pub fn create_writer(file: &str, compression_format: &str, threads_num: usize) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, errors::Error> {
+pub fn create_writer(file: &str, compression_format: &str, threads_num: usize) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, error::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
     let writer: Box<dyn std::io::Write> = match compression_format {

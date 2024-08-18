@@ -1,5 +1,5 @@
 mod io;
-mod errors;
+mod error;
 mod extract;
 mod pattern;
 
@@ -83,7 +83,7 @@ fn process_single_end_fastq(
             .collect::<Vec<_>>()
             .par_iter()
             .filter_map(|record| {
-                let read_captures: Result<regex::bytes::Captures, errors::Error> = barcode.get_captures(&record.seq());
+                let read_captures: Result<regex::bytes::Captures, error::Error> = barcode.get_captures(&record.seq());
                 let read_seq_rc: Vec<u8>;
                 let read_captures = if read_captures.is_err() && rc_barcodes {
                     read_seq_rc = extract::get_reverse_complement(record.seq());

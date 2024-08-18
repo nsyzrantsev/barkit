@@ -4,7 +4,7 @@ use crate::pattern;
 use std::str;
 use seq_io::fastq::{OwnedRecord, Record, RefRecord};
 
-use crate::errors::Error;
+use crate::error::Error;
 
 /// https://www.bioinformatics.org/sms/iupac.html
 const TRANSLATION_TABLE: [u8; 256] = {
@@ -78,35 +78,45 @@ impl BarcodeParser {
         Ok((full_match.start(), full_match.end()))
     }
 
-    pub fn get_new_read_with_adapter_trimming(barcode_type: &str, captures: Captures, read: &RefRecord) -> Result<OwnedRecord, Error> {
-        let (start, end) = Self::get_full_match_positions(&captures)?;
-        let (umi_start, umi_end) = Self::get_barcode_match_positions(&BarcodeType::UMI.to_string(), &captures)?;
-
-        let read_seq = read.seq();
-        let read_qual = read.qual();
-        
-        Ok(OwnedRecord {
-            head: Self::add_to_the_header(barcode_type, read, umi_start, umi_end)?,
-            seq: [&read_seq[..start], &read_seq[end..]].concat(),
-            qual: [&read_qual[..start], &read_qual[end..]].concat(),
-        })
+    fn create_owned_record(
+        head: Vec<u8>, 
+        seq: Vec<u8>, 
+        qual: Vec<u8>
+    ) -> Result<OwnedRecord, Error> {
+        Ok(OwnedRecord { head, seq, qual })
+    }
+    
+    fn get_umi_positions(captures: &Captures) -> Result<(usize, usize), Error> {
+        Self::get_barcode_match_positions(&BarcodeType::UMI.to_string(), captures)
     }
 
-    pub fn get_new_read_without_adapter_trimming(barcode_name: &str, captures: Captures, record: &RefRecord) -> Result<OwnedRecord, Error> {
-        let (umi_start, umi_end) = Self::get_barcode_match_positions(
-            &BarcodeType::UMI.to_string(), 
-            &captures
-        )?;
-        Ok(OwnedRecord {
-            head: Self::add_to_the_header(
-                &barcode_name,
-                record,
-                umi_start,
-                umi_end
-            )?,
-            seq: record.seq().to_vec(),
-            qual: record.qual().to_vec(),
-        })
+    pub fn get_new_read_with_adapter_trimming(
+        barcode_type: &str, 
+        captures: Captures, 
+        read: &RefRecord
+    ) -> Result<OwnedRecord, Error> {
+        let (start, end) = Self::get_full_match_positions(&captures)?;
+        let (umi_start, umi_end) = Self::get_umi_positions(&captures)?;
+    
+        let head = Self::add_to_the_header(barcode_type, read, umi_start, umi_end)?;
+        let seq = [&read.seq()[..start], &read.seq()[end..]].concat();
+        let qual = [&read.qual()[..start], &read.qual()[end..]].concat();
+    
+        Self::create_owned_record(head, seq, qual)
+    }
+    
+    pub fn get_new_read_without_adapter_trimming(
+        barcode_name: &str, 
+        captures: Captures, 
+        record: &RefRecord
+    ) -> Result<OwnedRecord, Error> {
+        let (umi_start, umi_end) = Self::get_umi_positions(&captures)?;
+    
+        let head = Self::add_to_the_header(barcode_name, record, umi_start, umi_end)?;
+        let seq = record.seq().to_vec();
+        let qual = record.qual().to_vec();
+    
+        Self::create_owned_record(head, seq, qual)
     }
 
     pub fn create_new_read(read_captures: Result<Option<Captures>, Error>, record: &RefRecord, skip_trimming: bool) -> Option<seq_io::fastq::OwnedRecord> {
