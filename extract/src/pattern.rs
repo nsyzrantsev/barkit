@@ -62,7 +62,7 @@ pub fn create_fuzzy(pattern: &str, max_error: &usize) -> String {
         result.push_str(&pattern[last_end..mat.start()]);
 
         let fuzzy_patterns = generate_sequences_with_pcr_errors(mat.as_str(), max_error);
-        result.push_str(&fuzzy_patterns.join("|"));
+        result.push_str(&format!("({})", fuzzy_patterns.join("|")));
 
         last_end = mat.end();
     }
@@ -75,7 +75,7 @@ pub fn create_fuzzy(pattern: &str, max_error: &usize) -> String {
 mod tests {
     use rstest::rstest;
 
-    use crate::pattern::generate_sequences_with_pcr_errors;
+    use crate::pattern;
 
     #[rstest]
     #[case(vec!["."], "a", 1)]
@@ -84,7 +84,18 @@ mod tests {
     #[case(vec!["AAA.", "AA.A", "A.AA", ".AAA"], "AAAA", 1)]
     #[case(vec!["..."], "AAA", 3)]
     #[case(vec!["..."], "AAA", 4)]
-    fn test_generate_sequences_with_pcr_errors(#[case] expected: Vec<&str>, #[case] pattern: &str, #[case] errors_num: usize) {
-        assert_eq!(expected, generate_sequences_with_pcr_errors(pattern, &errors_num));
+    fn test_generate_sequences_with_pcr_errors(#[case] expected: Vec<&str>, #[case] text: &str, #[case] errors_num: usize) {
+        assert_eq!(expected, pattern::generate_sequences_with_pcr_errors(text, &errors_num));
+    }
+
+    #[rstest]
+    #[case("^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 1)]
+    #[case("^(...)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 3)]
+    #[case("^(...)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 4)]
+    #[case("^((...))(?P<UMI>[ATGCN]{3})", "^(AAA)(?P<UMI>[ATGCN]{3})", 4)]
+    #[case("^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})(CC.|C.C|.CC)", "^AAA(?P<UMI>[ATGCN]{3})CCC", 1)]
+    #[case("^(?P<UMI>[ATGCN]{3})", "^(?P<UMI>[ATGCN]{3})", 1)]
+    fn test_create_fuzzy(#[case] expected: &str, #[case] pattern: &str, #[case] max_error: usize) {
+        assert_eq!(expected, pattern::create_fuzzy(pattern, &max_error))
     }
 }
