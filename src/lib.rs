@@ -44,7 +44,7 @@ pub enum Commands {
         #[arg(short='r', long, action=ArgAction::SetTrue)]
         rc_barcodes: bool,
 
-        /// skip trimming adapter sequence from the read
+        /// skip trimming the adapter sequence from the read
         #[arg(short='s', long, action=ArgAction::SetTrue)]
         skip_trimming: bool,
 
