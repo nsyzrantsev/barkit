@@ -167,31 +167,6 @@ pub fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-pub fn replace_reads(
-    read1: OwnedRecord, 
-    read2: OwnedRecord, 
-    read1_match: Result<Option<Match>, Error>,
-    read2_match: Result<Option<Match>, Error>
-) -> Option<(OwnedRecord, OwnedRecord)> {
-    let replace_result = match (read1_match, read2_match) {
-        (Ok(_), _) => Ok((read1, read2)),
-        (Err(_), Ok(_)) => Ok((OwnedRecord {
-            head: read1.head,
-            seq: read2.seq,
-            qual: read2.qual
-        }, OwnedRecord {
-            head: read2.head,
-            seq: read1.seq,
-            qual: read1.qual
-        })),
-        _ => Err(Error::BothReadsNotMatch),
-    };
-    match replace_result {
-        Ok((record1, record2)) => Some((record1, record2)),
-        Err(_) => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
