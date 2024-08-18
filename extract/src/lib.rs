@@ -8,6 +8,7 @@ use seq_io::fastq::{Record, RecordSet};
 
 use extract::BarcodeParser;
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     read1: String,
     read2: Option<String>,
@@ -52,6 +53,7 @@ pub fn run(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_single_end_fastq(
     read: String,
     pattern: String,
@@ -102,6 +104,7 @@ fn process_single_end_fastq(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_pair_end_fastq(
     read1: String,
     read2: String,

@@ -1,7 +1,8 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::rc::Rc;
+use std::sync::{Mutex, MutexGuard};
 
 use flate2::{read::MultiGzDecoder, write::GzEncoder, Compression};
 use gzp::{
@@ -92,11 +93,13 @@ fn get_reader_buffer_size(
     }
 }
 
+type WriterType = Rc<Mutex<BufWriter<Box<dyn std::io::Write>>>>;
+
 pub fn create_writer(
     file: &str,
     compression_format: &str,
     threads_num: usize,
-) -> Result<Arc<Mutex<BufWriter<Box<dyn std::io::Write>>>>, error::Error> {
+) -> Result<WriterType, error::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
     let writer: Box<dyn std::io::Write> = match compression_format {
@@ -115,7 +118,7 @@ pub fn create_writer(
         ),
         _ => Box::new(file),
     };
-    Ok(Arc::new(Mutex::new(BufWriter::with_capacity(
+    Ok(Rc::new(Mutex::new(BufWriter::with_capacity(
         WRITE_BUFFER_SIZE,
         writer,
     ))))
