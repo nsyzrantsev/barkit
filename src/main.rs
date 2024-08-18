@@ -1,5 +1,4 @@
 use clap::Parser;
-use extract;
 
 fn main() {
     let args = barkit::Args::parse();
@@ -23,11 +22,11 @@ fn main() {
                 patterns.pattern2.clone(),
                 out_read1.to_string(),
                 out_read2.clone(),
-                max_memory.clone(),
-                threads.clone(),
-                rc_barcodes.clone(),
-                skip_trimming.clone(),
-                max_error.clone(),
+                *max_memory,
+                *threads,
+                *rc_barcodes,
+                *skip_trimming,
+                *max_error,
                 compression_format.clone()
             );
         }
