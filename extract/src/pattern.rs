@@ -6,23 +6,22 @@ const FUZZY_CHARACTER: &str = ".";
 const ADAPTER_PATTERN_REGEX: &str = r"(?i)(?<!\[)\b[atgcn]+\b(?!\])";
 
 pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> Vec<String> {
-    
     if *errors_num == 0 {
         return vec![string.to_string().to_ascii_uppercase()];
     }
-    
+
     if string.is_empty() {
         return Vec::new();
     }
-    
+
     if *errors_num >= string.len() {
         return vec![FUZZY_CHARACTER.repeat(string.len())];
     }
 
     let num_chars = string.chars().count();
-    assert!(num_chars <= size_of::<usize>() * 8, "too many characters");
+    assert!(num_chars <= usize::BITS as usize * 8, "too many characters");
 
-    let max_permutation_mask = usize::max_value()
+    let max_permutation_mask = usize::MAX
         .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32)
         .unwrap();
 
@@ -35,7 +34,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> V
             continue;
         }
         let mut s = String::new();
-        for idx in 0..num_chars {
+        for (idx, _) in upper.iter().enumerate().take(num_chars) {
             if (permutation_mask & (1 << idx)) == 0 {
                 s.push_str(FUZZY_CHARACTER)
             } else {
@@ -48,10 +47,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> V
     cases
 }
 
-
-
 pub fn create_fuzzy(pattern: &str, max_error: &usize) -> String {
-
     let regex_pattern = Regex::new(ADAPTER_PATTERN_REGEX).unwrap();
 
     let mut result = String::new();
@@ -84,8 +80,15 @@ mod tests {
     #[case(vec!["AAA.", "AA.A", "A.AA", ".AAA"], "AAAA", 1)]
     #[case(vec!["..."], "AAA", 3)]
     #[case(vec!["..."], "AAA", 4)]
-    fn test_generate_sequences_with_pcr_errors(#[case] expected: Vec<&str>, #[case] text: &str, #[case] errors_num: usize) {
-        assert_eq!(expected, pattern::generate_sequences_with_pcr_errors(text, &errors_num));
+    fn test_generate_sequences_with_pcr_errors(
+        #[case] expected: Vec<&str>,
+        #[case] text: &str,
+        #[case] errors_num: usize,
+    ) {
+        assert_eq!(
+            expected,
+            pattern::generate_sequences_with_pcr_errors(text, &errors_num)
+        );
     }
 
     #[rstest]
@@ -93,7 +96,11 @@ mod tests {
     #[case("^(...)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 3)]
     #[case("^(...)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 4)]
     #[case("^((...))(?P<UMI>[ATGCN]{3})", "^(AAA)(?P<UMI>[ATGCN]{3})", 4)]
-    #[case("^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})(CC.|C.C|.CC)", "^AAA(?P<UMI>[ATGCN]{3})CCC", 1)]
+    #[case(
+        "^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})(CC.|C.C|.CC)",
+        "^AAA(?P<UMI>[ATGCN]{3})CCC",
+        1
+    )]
     #[case("^(?P<UMI>[ATGCN]{3})", "^(?P<UMI>[ATGCN]{3})", 1)]
     fn test_create_fuzzy(#[case] expected: &str, #[case] pattern: &str, #[case] max_error: usize) {
         assert_eq!(expected, pattern::create_fuzzy(pattern, &max_error))

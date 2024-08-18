@@ -14,10 +14,12 @@ fn main() {
             rc_barcodes,
             skip_trimming,
             max_error,
-            compression_format, patterns } => {
+            compression_format,
+            patterns,
+        } => {
             extract::run(
                 read1.to_string(),
-                read2.clone(), 
+                read2.clone(),
                 patterns.pattern1.clone(),
                 patterns.pattern2.clone(),
                 out_read1.to_string(),
@@ -27,7 +29,7 @@ fn main() {
                 *rc_barcodes,
                 *skip_trimming,
                 *max_error,
-                compression_format.clone()
+                compression_format.clone(),
             );
         }
     }
