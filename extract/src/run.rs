@@ -1,8 +1,8 @@
 use rayon::prelude::*;
 use seq_io::fastq::{Record, RecordSet};
 
-use crate::extract::{self, BarcodeParser};
 use crate::error;
+use crate::extract::{self, BarcodeParser};
 use crate::io;
 
 #[allow(clippy::too_many_arguments)]
