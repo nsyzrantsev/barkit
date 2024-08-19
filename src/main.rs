@@ -17,7 +17,7 @@ fn main() {
             compression_format,
             patterns,
         } => {
-            extract::run(
+            extract::run::run(
                 read1.to_string(),
                 read2.clone(),
                 patterns.pattern1.clone(),

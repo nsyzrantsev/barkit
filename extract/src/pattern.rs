@@ -3,7 +3,7 @@ use std::mem::size_of;
 use fancy_regex::Regex;
 
 const FUZZY_CHARACTER: &str = ".";
-const ADAPTER_PATTERN_REGEX: &str = r"(?i)(?<!\[)\b[atgcn]+\b(?!\])";
+const ADAPTER_PATTERN_REGEX: &str = r"(?i)(?<!\[)\b[atgcryswkmbdhvn]+\b(?!\])";
 
 pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> Vec<String> {
     if *errors_num == 0 {
