@@ -52,7 +52,7 @@ pub enum Commands {
         max_error: usize,
 
         /// compression format for output FASTQ files
-        #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf", "mgzip", "no"])]
+        #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf", "mgzip", "lz4", "no"])]
         compression_format: String,
     },
 }

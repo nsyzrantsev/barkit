@@ -9,7 +9,7 @@ use gzp::{
     deflate::Bgzf, deflate::Mgzip, par::compress::ParCompressBuilder,
     par::decompress::ParDecompressBuilder,
 };
-use lz4::Decoder;
+use lz4::{Decoder, EncoderBuilder};
 use seq_io::fastq::{OwnedRecord, Reader};
 
 use crate::error;
@@ -115,6 +115,10 @@ pub fn create_writer(
                 .num_threads(threads_num)
                 .expect("Provided unexpected number of threads")
                 .from_writer(file),
+        ),
+        "lz4" => Box::new(
+            EncoderBuilder::new()
+            .build(file)?
         ),
         _ => Box::new(file),
     };
