@@ -116,10 +116,7 @@ pub fn create_writer(
                 .expect("Provided unexpected number of threads")
                 .from_writer(file),
         ),
-        "lz4" => Box::new(
-            EncoderBuilder::new()
-            .build(file)?
-        ),
+        "lz4" => Box::new(EncoderBuilder::new().build(file)?),
         _ => Box::new(file),
     };
     Ok(Rc::new(Mutex::new(BufWriter::with_capacity(

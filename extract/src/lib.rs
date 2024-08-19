@@ -94,7 +94,7 @@ fn process_single_end_fastq(
                     } else {
                         read_captures
                     };
-                    BarcodeParser::create_new_read(read_captures.map(Some), record, skip_trimming)
+                    extract::create_new_read(read_captures.map(Some), record, skip_trimming)
                 })
                 .collect();
 
@@ -184,9 +184,9 @@ fn process_pair_end_fastq(
                     };
 
                     let new_record1 =
-                        BarcodeParser::create_new_read(read1_captures, record1, skip_trimming);
+                        extract::create_new_read(read1_captures, record1, skip_trimming);
                     let new_record2 =
-                        BarcodeParser::create_new_read(read2_captures, record2, skip_trimming);
+                        extract::create_new_read(read2_captures, record2, skip_trimming);
 
                     match (new_record1, new_record2) {
                         (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
