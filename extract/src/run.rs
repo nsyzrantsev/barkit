@@ -12,12 +12,12 @@ use crate::io::{self, CompressionType};
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
-    read1: String,
-    read2: Option<String>,
+    fq1: String,
+    fq2: Option<String>,
     pattern1: Option<String>,
     pattern2: Option<String>,
-    out_read1: String,
-    out_read2: Option<String>,
+    out_fq1: String,
+    out_fq2: Option<String>,
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
@@ -26,15 +26,15 @@ pub fn run(
     output_compression: CompressionType,
     quite: bool
 ) {
-    match (read2, out_read2, pattern1, pattern2) {
-        (Some(read2), Some(out_read2), pattern1, pattern2) => {
+    match (fq2, out_fq2, pattern1, pattern2) {
+        (Some(fq2), Some(out_fq2), pattern1, pattern2) => {
             process_pair_end_fastq(
-            read1,
-            read2,
+            fq1,
+            fq2,
             pattern1,
             pattern2,
-            out_read1,
-            out_read2,
+            out_fq1,
+            out_fq2,
             max_memory,
             threads,
             rc_barcodes,
@@ -45,9 +45,9 @@ pub fn run(
         )},
         (None, None, Some(pattern1), None) => {
             process_single_end_fastq(
-            read1,
+            fq1,
             pattern1,
-            out_read1,
+            out_fq1,
             max_memory,
             threads,
             rc_barcodes,
@@ -75,7 +75,7 @@ fn process_single_end_fastq(
 ) {
     let progress_bar = match quite {
         false => {
-            println!("{} Counting reads...", style("[1/3]").bold().dim());
+            println!("{} Estimating reads count...", style("[1/3]").bold().dim());
             Some(logger::create_progress_bar(&read, threads, max_memory).expect("Failed to create progress bar"))
         },
         true => None
@@ -93,7 +93,7 @@ fn process_single_end_fastq(
         .expect("Failed to create writer");
 
     if !quite {
-        println!("{} Processing reads...", style("[3/3]").bold().dim());
+        println!("{} Extracting barcodes from reads...", style("[3/3]").bold().dim());
     }
 
     loop {
@@ -141,12 +141,12 @@ fn process_single_end_fastq(
 
 #[allow(clippy::too_many_arguments)]
 fn process_pair_end_fastq(
-    read1: String,
-    read2: String,
+    fq1: String,
+    fq2: String,
     pattern1: Option<String>,
     pattern2: Option<String>,
-    out_read1: String,
-    out_read2: String,
+    out_fq1: String,
+    out_fq2: String,
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
@@ -158,8 +158,8 @@ fn process_pair_end_fastq(
     let started = Instant::now();
     let progress_bar = match quite {
         false => {
-            println!("{} Counting reads...", style("[1/3]").bold().dim());
-            Some(logger::create_progress_bar(&read1, threads, max_memory).expect("Failed to create progress bar"))
+            println!("{} Estimating reads count...", style("[1/3]").bold().dim());
+            Some(logger::create_progress_bar(&fq1, threads, max_memory).expect("Failed to create progress bar"))
         },
         true => None
     };
@@ -177,17 +177,17 @@ fn process_pair_end_fastq(
     });
 
     let mut reader1 =
-        io::create_reader(&read1, threads, max_memory).expect("Failed to read input forward reads");
+        io::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
     let mut reader2 =
-        io::create_reader(&read2, threads, max_memory).expect("Failed to read input reverse reads");
+        io::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
 
-    let writer1 = io::create_writer(&out_read1, &output_compression, threads)
+    let writer1 = io::create_writer(&out_fq1, &output_compression, threads)
         .expect("Failed to write output forward reads");
-    let writer2 = io::create_writer(&out_read2, &output_compression, threads)
+    let writer2 = io::create_writer(&out_fq2, &output_compression, threads)
         .expect("Failed to write output reverse reads");
 
     if !quite {
-        println!("{} Processing reads...", style("[3/3]").bold().dim());
+        println!("{} Extracting barcodes from reads...", style("[3/3]").bold().dim());
     }
 
     loop {

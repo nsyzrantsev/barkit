@@ -5,10 +5,10 @@ fn main() {
 
     match &args.command {
         barkit::Commands::Extract {
-            read1,
-            read2,
-            out_read1,
-            out_read2,
+            fq1,
+            fq2,
+            out_fq1,
+            out_fq2,
             max_memory,
             threads,
             rc_barcodes,
@@ -23,12 +23,12 @@ fn main() {
         } => {
             let output_compression = extract::io::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
             extract::run::run(
-                read1.to_string(),
-                read2.clone(),
+                fq1.to_string(),
+                fq2.clone(),
                 patterns.pattern1.clone(),
                 patterns.pattern2.clone(),
-                out_read1.to_string(),
-                out_read2.clone(),
+                out_fq1.to_string(),
+                out_fq2.clone(),
                 *max_memory,
                 *threads,
                 *rc_barcodes,
