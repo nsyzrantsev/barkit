@@ -1,5 +1,4 @@
 use clap::Parser;
-use extract::io::CompressionType;
 
 fn main() {
     let args = barkit::Args::parse();
@@ -19,7 +18,8 @@ fn main() {
             gz,
             bgz,
             mgz,
-            lz4
+            lz4,
+            quite
         } => {
             let output_compression = extract::io::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
             extract::run::run(
@@ -34,7 +34,8 @@ fn main() {
                 *rc_barcodes,
                 *skip_trimming,
                 *max_error,
-                output_compression
+                output_compression,
+                *quite
             );
         }
     }

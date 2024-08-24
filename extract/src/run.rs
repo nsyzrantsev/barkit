@@ -1,8 +1,13 @@
+use std::time::Instant;
+
+use indicatif::HumanDuration;
 use rayon::prelude::*;
 use seq_io::fastq::{Record, RecordSet};
+use console::style;
 
 use crate::error;
-use crate::extract::{self, BarcodeParser};
+use crate::logger;
+use crate::barcode::{self, BarcodeParser};
 use crate::io::{self, CompressionType};
 
 #[allow(clippy::too_many_arguments)]
@@ -18,10 +23,12 @@ pub fn run(
     rc_barcodes: bool,
     skip_trimming: bool,
     max_error: usize,
-    output_compression: CompressionType
+    output_compression: CompressionType,
+    quite: bool
 ) {
     match (read2, out_read2, pattern1, pattern2) {
-        (Some(read2), Some(out_read2), pattern1, pattern2) => process_pair_end_fastq(
+        (Some(read2), Some(out_read2), pattern1, pattern2) => {
+            process_pair_end_fastq(
             read1,
             read2,
             pattern1,
@@ -33,9 +40,11 @@ pub fn run(
             rc_barcodes,
             skip_trimming,
             max_error,
-            output_compression
-        ),
-        (None, None, Some(pattern1), None) => process_single_end_fastq(
+            output_compression,
+            quite
+        )},
+        (None, None, Some(pattern1), None) => {
+            process_single_end_fastq(
             read1,
             pattern1,
             out_read1,
@@ -44,9 +53,10 @@ pub fn run(
             rc_barcodes,
             skip_trimming,
             max_error,
-            output_compression
-        ),
-        _ => todo!(),
+            output_compression,
+            quite
+        )},
+        _ => println!("{}", "Something unexpected happend... Please, check provided arguments."),
     }
 }
 
@@ -60,14 +70,31 @@ fn process_single_end_fastq(
     rc_barcodes: bool,
     skip_trimming: bool,
     max_error: usize,
-    output_compression: CompressionType
+    output_compression: CompressionType,
+    quite: bool
 ) {
+    let progress_bar = match quite {
+        false => {
+            println!("{} Counting reads...", style("[1/3]").bold().dim());
+            Some(logger::create_progress_bar(&read, threads, max_memory).expect("Failed to create progress bar"))
+        },
+        true => None
+    };
+
     let barcode = BarcodeParser::new(&pattern, max_error).expect("REASON");
+
+    if !quite {
+        println!("{} Parsing barcode patterns...", style("[2/3]").bold().dim());
+    }
 
     let mut reader =
         io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
     let writer = io::create_writer(&out_read, &output_compression, threads)
         .expect("Failed to create writer");
+
+    if !quite {
+        println!("{} Processing reads...", style("[3/3]").bold().dim());
+    }
 
     loop {
         let mut record_set = RecordSet::default();
@@ -77,27 +104,38 @@ fn process_single_end_fastq(
         if filled_set.is_none() {
             break;
         } else {
-            let result_reads: Vec<_> = record_set
+            let records = record_set
                 .into_iter()
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            let result_reads: Vec<_> = records
                 .par_iter()
                 .filter_map(|record| {
                     let read_captures: Result<regex::bytes::Captures, error::Error> =
                         barcode.get_captures(record.seq());
                     let read_seq_rc: Vec<u8>;
                     let read_captures = if read_captures.is_err() && rc_barcodes {
-                        read_seq_rc = extract::get_reverse_complement(record.seq());
+                        read_seq_rc = barcode::get_reverse_complement(record.seq());
                         barcode.get_captures(&read_seq_rc)
                     } else {
                         read_captures
                     };
-                    extract::create_new_read(read_captures.map(Some), record, skip_trimming)
+                    barcode::create_new_read(read_captures.map(Some), record, skip_trimming)
                 })
                 .collect();
 
             let writer = writer.lock().unwrap();
             io::save_single_end_reads_to_file(result_reads, writer);
+
+            match progress_bar {
+                Some(ref pb) => pb.inc(records.len() as u64),
+                None => ()
+            }
         }
+    }
+
+    match progress_bar {
+        Some(pb) => pb.finish_with_message("all reads successfully processed"),
+        None => ()
     }
 }
 
@@ -114,8 +152,22 @@ fn process_pair_end_fastq(
     rc_barcodes: bool,
     skip_trimming: bool,
     max_error: usize,
-    output_compression: CompressionType
+    output_compression: CompressionType,
+    quite: bool
 ) {
+    let started = Instant::now();
+    let progress_bar = match quite {
+        false => {
+            println!("{} Counting reads...", style("[1/3]").bold().dim());
+            Some(logger::create_progress_bar(&read1, threads, max_memory).expect("Failed to create progress bar"))
+        },
+        true => None
+    };
+
+    if !quite {
+        println!("{} Parsing barcode patterns...", style("[2/3]").bold().dim());
+    }
+
     let barcode1 = pattern1.as_ref().map(|pat| {
         BarcodeParser::new(pat, max_error).expect("Failed to create barcode parser for pattern1")
     });
@@ -133,6 +185,10 @@ fn process_pair_end_fastq(
         .expect("Failed to write output forward reads");
     let writer2 = io::create_writer(&out_read2, &output_compression, threads)
         .expect("Failed to write output reverse reads");
+
+    if !quite {
+        println!("{} Processing reads...", style("[3/3]").bold().dim());
+    }
 
     loop {
         let mut record_set1 = RecordSet::default();
@@ -162,7 +218,7 @@ fn process_pair_end_fastq(
 
                     let read1_seq_rc;
                     let read1_captures = if read1_captures.is_err() && rc_barcodes {
-                        read1_seq_rc = extract::get_reverse_complement(record1.seq());
+                        read1_seq_rc = barcode::get_reverse_complement(record1.seq());
                         barcode1
                             .as_ref()
                             .map_or(Ok(None), |b| b.get_captures(&read1_seq_rc).map(Some))
@@ -172,7 +228,7 @@ fn process_pair_end_fastq(
 
                     let read2_seq_rc;
                     let read2_captures = if read2_captures.is_err() && rc_barcodes {
-                        read2_seq_rc = extract::get_reverse_complement(record2.seq());
+                        read2_seq_rc = barcode::get_reverse_complement(record2.seq());
                         barcode2
                             .as_ref()
                             .map_or(Ok(None), |b| b.get_captures(&read2_seq_rc).map(Some))
@@ -181,9 +237,9 @@ fn process_pair_end_fastq(
                     };
 
                     let new_record1 =
-                        extract::create_new_read(read1_captures, record1, skip_trimming);
+                        barcode::create_new_read(read1_captures, record1, skip_trimming);
                     let new_record2 =
-                        extract::create_new_read(read2_captures, record2, skip_trimming);
+                        barcode::create_new_read(read2_captures, record2, skip_trimming);
 
                     match (new_record1, new_record2) {
                         (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
@@ -197,6 +253,15 @@ fn process_pair_end_fastq(
             let writer1 = writer1.lock().unwrap();
             let writer2 = writer2.lock().unwrap();
             io::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
+            
+            match progress_bar {
+                Some(ref pb) => pb.inc(records1.len() as u64),
+                None => ()
+            }
         }
+    }
+    match progress_bar {
+        Some(_) => println!("{} Done in {}", logger::SPARKLE, HumanDuration(started.elapsed())),
+        None => ()
     }
 }

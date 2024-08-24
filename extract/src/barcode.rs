@@ -38,7 +38,7 @@ impl fmt::Display for BarcodeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             BarcodeType::Umi => write!(f, "UMI"),
-            BarcodeType::Sample => write!(f, "SAMPLE"),
+            BarcodeType::Sample => write!(f, "SB"),
         }
     }
 }
@@ -93,7 +93,7 @@ fn get_sample_barcode_positions(captures: &Captures) -> Result<(usize, usize), E
     get_barcode_match_positions(&BarcodeType::Sample.to_string(), captures)
 }
 
-pub fn trim_adapters(
+fn trim_adapters(
     captures: Captures,
     read: &OwnedRecord,
 ) -> Result<OwnedRecord, Error> {
@@ -104,7 +104,7 @@ pub fn trim_adapters(
     create_owned_record(read.head().to_vec(), seq, qual)
 }
 
-pub fn get_read_with_barcodes_in_header(
+fn get_read_with_new_header(
     barcode_name: &str,
     captures: &Captures,
     record: &RefRecord,
@@ -126,11 +126,11 @@ pub fn create_new_read(
 ) -> Option<seq_io::fastq::OwnedRecord> {
     let umi_capture_group_name = BarcodeType::Umi.to_string();
     match (read_captures, skip_trimming) {
-        (Ok(Some(captures)), true) => Some(get_read_with_barcodes_in_header(
+        (Ok(Some(captures)), true) => Some(get_read_with_new_header(
             &umi_capture_group_name, &captures, record
         ).ok()?),
         (Ok(Some(captures)), false) => {
-            let new_read = get_read_with_barcodes_in_header(
+            let new_read = get_read_with_new_header(
                 &umi_capture_group_name, &captures, record
             ).ok()?;
             Some(trim_adapters(captures, &new_read).ok()?)
@@ -178,7 +178,7 @@ pub fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
 mod tests {
     use rstest::rstest;
 
-    use crate::extract::get_reverse_complement;
+    use crate::barcode::get_reverse_complement;
 
     #[rstest]
     #[case(b"", b"")]

@@ -55,17 +55,21 @@ pub enum Commands {
         #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["bgz", "mgz", "lz4"])]
         gz: bool,
 
-        /// Compress outputs in bgzf (bgzip) format
+        /// compress outputs in bgzf (bgzip) format
         #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "mgz", "lz4"])]
         bgz: bool,
 
-        /// Compress outputs in mgzip format
+        /// compress outputs in mgzip format
         #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "bgz", "lz4"])]
         mgz: bool,
 
-        /// Compress outputs in lz4 format
+        /// compress outputs in lz4 format
         #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "bgz", "mgz"])]
         lz4: bool,
+
+        /// enable skipping all logs
+        #[arg(short = 'q', long, action = ArgAction::SetTrue)]
+        quite: bool,
     }
 }
 

@@ -17,16 +17,16 @@ use crate::error;
 const WRITE_BUFFER_SIZE: usize = 128 * 1024 * 1024; // 128 KB buffer size, you can adjust this size as needed
 
 pub enum CompressionType {
-    /// BGZF (BGZIP) compression format http://samtools.github.io/hts-specs/SAMv1.pdf
+    /// BGZF (BGZIP) compression format
     Bgzf,
 
-    /// Gzip compression format https://www.ietf.org/rfc/rfc1952.txt
+    /// Gzip compression format
     Gzip,
 
     /// Mgzip compression format
     Mgzip,
 
-    /// LZ4 compression format https://lz4.org/
+    /// LZ4 compression format
     Lz4,
 
     /// Without compression
@@ -75,13 +75,20 @@ impl CompressionType {
     }
 }
 
+pub fn get_lines_count(file: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> usize {
+    create_reader(file, threads_num, buffer_size_in_megabytes)
+        .expect(&format!("couldn't open file {}", file))
+        .into_records()
+        .count()
+}
+
 pub fn create_reader(
     fastq_path: &str,
     threads_num: usize,
     buffer_size_in_megabytes: Option<usize>,
 ) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, error::Error> {
     let path = Path::new(fastq_path);
-    let file = File::open(path).expect("couldn't open file");
+    let file = File::open(path).expect(&format!("couldn't open file {}", fastq_path));
 
     let buffer_size_in_bytes = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
 
@@ -153,25 +160,26 @@ pub fn create_writer(
     ))))
 }
 
+fn write_read_to_file(
+    read: &OwnedRecord,
+    writer: &mut MutexGuard<BufWriter<Box<dyn Write>>>,
+) {
+    let _ = seq_io::fastq::write_to(
+        &mut **writer,
+        &read.head,
+        &read.seq,
+        &read.qual,
+    );
+}
+
 pub fn save_pair_end_reads_to_file(
     result_read_pairs: Vec<(OwnedRecord, OwnedRecord)>,
     mut writer1: MutexGuard<BufWriter<Box<dyn Write>>>,
     mut writer2: MutexGuard<BufWriter<Box<dyn Write>>>,
 ) {
     for (read1_record, read2_record) in result_read_pairs {
-        let _ = seq_io::fastq::write_to(
-            &mut *writer1,
-            &read1_record.head,
-            &read1_record.seq,
-            &read1_record.qual,
-        );
-
-        let _ = seq_io::fastq::write_to(
-            &mut *writer2,
-            &read2_record.head,
-            &read2_record.seq,
-            &read2_record.qual,
-        );
+        write_read_to_file(&read1_record, &mut writer1);
+        write_read_to_file(&read2_record, &mut writer2);
     }
 }
 
@@ -180,11 +188,6 @@ pub fn save_single_end_reads_to_file(
     mut writer: MutexGuard<BufWriter<Box<dyn Write>>>,
 ) {
     for read_record in result_reads {
-        let _ = seq_io::fastq::write_to(
-            &mut *writer,
-            &read_record.head,
-            &read_record.seq,
-            &read_record.qual,
-        );
+        write_read_to_file(&read_record, &mut writer);
     }
 }
