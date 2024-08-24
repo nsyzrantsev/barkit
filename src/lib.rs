@@ -51,10 +51,22 @@ pub enum Commands {
         #[arg(short = 'e', long, default_value = "1")]
         max_error: usize,
 
-        /// compression format for output FASTQ files
-        #[arg(short='c', long, default_value = "bgzf", value_parser = ["gzip", "bgzf", "mgzip", "lz4", "no"])]
-        compression_format: String,
-    },
+        /// Compress outputs in gzip format
+        #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["bgz", "mgz", "lz4"])]
+        gz: bool,
+
+        /// Compress outputs in bgzf (bgzip) format
+        #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "mgz", "lz4"])]
+        bgz: bool,
+
+        /// Compress outputs in mgzip format
+        #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "bgz", "lz4"])]
+        mgz: bool,
+
+        /// Compress outputs in lz4 format
+        #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "bgz", "mgz"])]
+        lz4: bool,
+    }
 }
 
 #[derive(Debug, clap::Args)]

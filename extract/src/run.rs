@@ -3,7 +3,7 @@ use seq_io::fastq::{Record, RecordSet};
 
 use crate::error;
 use crate::extract::{self, BarcodeParser};
-use crate::io;
+use crate::io::{self, CompressionType};
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -18,7 +18,7 @@ pub fn run(
     rc_barcodes: bool,
     skip_trimming: bool,
     max_error: usize,
-    compression_format: String,
+    output_compression: CompressionType
 ) {
     match (read2, out_read2, pattern1, pattern2) {
         (Some(read2), Some(out_read2), pattern1, pattern2) => process_pair_end_fastq(
@@ -33,7 +33,7 @@ pub fn run(
             rc_barcodes,
             skip_trimming,
             max_error,
-            compression_format,
+            output_compression
         ),
         (None, None, Some(pattern1), None) => process_single_end_fastq(
             read1,
@@ -44,7 +44,7 @@ pub fn run(
             rc_barcodes,
             skip_trimming,
             max_error,
-            compression_format,
+            output_compression
         ),
         _ => todo!(),
     }
@@ -60,13 +60,13 @@ fn process_single_end_fastq(
     rc_barcodes: bool,
     skip_trimming: bool,
     max_error: usize,
-    compression_format: String,
+    output_compression: CompressionType
 ) {
     let barcode = BarcodeParser::new(&pattern, max_error).expect("REASON");
 
     let mut reader =
         io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read, &compression_format, threads)
+    let writer = io::create_writer(&out_read, &output_compression, threads)
         .expect("Failed to create writer");
 
     loop {
@@ -114,7 +114,7 @@ fn process_pair_end_fastq(
     rc_barcodes: bool,
     skip_trimming: bool,
     max_error: usize,
-    compression_format: String,
+    output_compression: CompressionType
 ) {
     let barcode1 = pattern1.as_ref().map(|pat| {
         BarcodeParser::new(pat, max_error).expect("Failed to create barcode parser for pattern1")
@@ -129,9 +129,9 @@ fn process_pair_end_fastq(
     let mut reader2 =
         io::create_reader(&read2, threads, max_memory).expect("Failed to read input reverse reads");
 
-    let writer1 = io::create_writer(&out_read1, &compression_format, threads)
+    let writer1 = io::create_writer(&out_read1, &output_compression, threads)
         .expect("Failed to write output forward reads");
-    let writer2 = io::create_writer(&out_read2, &compression_format, threads)
+    let writer2 = io::create_writer(&out_read2, &output_compression, threads)
         .expect("Failed to write output reverse reads");
 
     loop {

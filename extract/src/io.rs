@@ -14,36 +14,64 @@ use seq_io::fastq::{OwnedRecord, Reader};
 
 use crate::error;
 
-// magic numbers in the header of each file type
-const GZIP_MAGIC_BYTES: [u8; 2] = [0x1f, 0x8b];
-const LZ4_MAGIC_BYTES: [u8; 4] = [0x04, 0x22, 0x4d, 0x18];
-const BGZIP_MAGIC_BYTES: [u8; 4] = [0x42, 0x43, 0x02, 0x00];
-
 const WRITE_BUFFER_SIZE: usize = 128 * 1024 * 1024; // 128 KB buffer size, you can adjust this size as needed
 
-enum CompressionType {
+pub enum CompressionType {
+    /// BGZF (BGZIP) compression format http://samtools.github.io/hts-specs/SAMv1.pdf
     Bgzf,
+
+    /// Gzip compression format https://www.ietf.org/rfc/rfc1952.txt
     Gzip,
+
+    /// Mgzip compression format
+    Mgzip,
+
+    /// LZ4 compression format https://lz4.org/
     Lz4,
+
+    /// Without compression
     No,
 }
 
-fn get_fastq_compression_type(path: &Path) -> CompressionType {
-    let mut buffer = [0u8; 16];
 
-    File::open(path)
-        .expect("couldn't open file")
-        .read_exact(&mut buffer)
-        .expect("couldn't read the first two bytes of file");
+impl CompressionType {
+    fn magic_bytes(&self) -> &'static [u8] {
+        match self {
+            CompressionType::Bgzf => &[0x42, 0x43, 0x02, 0x00],
+            CompressionType::Gzip => &[0x1f, 0x8b],
+            CompressionType::Mgzip => &[0x1f, 0x8b],
+            CompressionType::Lz4 => &[0x04, 0x22, 0x4d, 0x18],
+            CompressionType::No => &[],
+        }
+    }
 
-    if buffer[..2] == GZIP_MAGIC_BYTES {
-        CompressionType::Gzip
-    } else if buffer[..4] == LZ4_MAGIC_BYTES {
-        CompressionType::Lz4
-    } else if buffer[12..16] == BGZIP_MAGIC_BYTES {
-        CompressionType::Bgzf
-    } else {
-        CompressionType::No
+    pub fn get_output_compression_type(gz: &bool, bgz: &bool, mgz: &bool, lz4: &bool) -> Self {
+        match (gz, bgz, mgz, lz4) {
+            (true, false, false, false) => Self::Gzip,
+            (false, true, false, false) => Self::Mgzip,
+            (false, false, true, false) => Self::Bgzf,
+            (false, false, false, true) => Self::Lz4,
+            _ => CompressionType::No,
+        }
+    }
+
+    fn get_input_compression_type(path: &Path) -> CompressionType {
+        let mut buffer = [0u8; 16];
+    
+        File::open(path)
+            .expect("couldn't open file")
+            .read_exact(&mut buffer)
+            .expect("couldn't read the first two bytes of file");
+    
+        if &buffer[..2] == CompressionType::Gzip.magic_bytes() {
+            CompressionType::Gzip
+        } else if &buffer[..4] == CompressionType::Lz4.magic_bytes() {
+            CompressionType::Lz4
+        } else if &buffer[12..16] == CompressionType::Bgzf.magic_bytes() {
+            CompressionType::Bgzf
+        } else {
+            CompressionType::No
+        }
     }
 }
 
@@ -57,8 +85,8 @@ pub fn create_reader(
 
     let buffer_size_in_bytes = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
 
-    let decoder: Box<dyn Read> = match get_fastq_compression_type(path) {
-        CompressionType::Gzip => Box::new(MultiGzDecoder::new(file)),
+    let decoder: Box<dyn Read> = match CompressionType::get_input_compression_type(path) {
+        CompressionType::Gzip | CompressionType::Mgzip => Box::new(MultiGzDecoder::new(file)),
         CompressionType::Lz4 => Box::new(Decoder::new(file)?),
         CompressionType::Bgzf => Box::new(
             ParDecompressBuilder::<Bgzf>::new()
@@ -97,26 +125,26 @@ type WriterType = Rc<Mutex<BufWriter<Box<dyn std::io::Write>>>>;
 
 pub fn create_writer(
     file: &str,
-    compression_format: &str,
+    compression: &CompressionType,
     threads_num: usize,
 ) -> Result<WriterType, error::Error> {
     let path = Path::new(file);
     let file = File::create(path)?;
-    let writer: Box<dyn std::io::Write> = match compression_format {
-        "gzip" => Box::new(GzEncoder::new(file, Compression::default())),
-        "bgzf" => Box::new(
+    let writer: Box<dyn std::io::Write> = match compression {
+        CompressionType::Gzip => Box::new(GzEncoder::new(file, Compression::default())),
+        CompressionType::Bgzf => Box::new(
             ParCompressBuilder::<Bgzf>::new()
                 .num_threads(threads_num)
                 .expect("Provided unexpected number of threads")
                 .from_writer(file),
         ),
-        "mgzip" => Box::new(
+        CompressionType::Mgzip => Box::new(
             ParCompressBuilder::<Mgzip>::new()
                 .num_threads(threads_num)
                 .expect("Provided unexpected number of threads")
                 .from_writer(file),
         ),
-        "lz4" => Box::new(EncoderBuilder::new().build(file)?),
+        CompressionType::Lz4 => Box::new(EncoderBuilder::new().build(file)?),
         _ => Box::new(file),
     };
     Ok(Rc::new(Mutex::new(BufWriter::with_capacity(

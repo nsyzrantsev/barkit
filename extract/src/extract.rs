@@ -31,12 +31,14 @@ const TRANSLATION_TABLE: [u8; 256] = {
 
 pub enum BarcodeType {
     Umi,
+    Sample,
 }
 
 impl fmt::Display for BarcodeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             BarcodeType::Umi => write!(f, "UMI"),
+            BarcodeType::Sample => write!(f, "SAMPLE"),
         }
     }
 }
@@ -47,7 +49,7 @@ pub struct BarcodeParser {
 
 impl BarcodeParser {
     pub fn new(pattern: &str, max_error: usize) -> Result<Self, Error> {
-        let fuzzy_pattern = pattern::create_fuzzy(pattern, &max_error);
+        let fuzzy_pattern = pattern::get_with_errors(pattern, &max_error);
         let regex = Regex::new(&fuzzy_pattern)?;
         Ok(Self { regex })
     }
@@ -74,7 +76,7 @@ fn get_barcode_match_positions(
 ) -> Result<(usize, usize), Error> {
     let full_match = captures
         .name(barcode_name)
-        .ok_or(Error::BarcodeCaptureGroupNotFound("0".to_owned()))?;
+        .ok_or(Error::BarcodeCaptureGroupNotFound(barcode_name.to_string()))?;
 
     Ok((full_match.start(), full_match.end()))
 }
@@ -87,27 +89,28 @@ fn get_umi_positions(captures: &Captures) -> Result<(usize, usize), Error> {
     get_barcode_match_positions(&BarcodeType::Umi.to_string(), captures)
 }
 
-pub fn get_new_read_with_adapter_trimming(
-    barcode_type: &str,
+fn get_sample_barcode_positions(captures: &Captures) -> Result<(usize, usize), Error> {
+    get_barcode_match_positions(&BarcodeType::Sample.to_string(), captures)
+}
+
+pub fn trim_adapters(
     captures: Captures,
-    read: &RefRecord,
+    read: &OwnedRecord,
 ) -> Result<OwnedRecord, Error> {
     let (start, end) = get_full_match_positions(&captures)?;
-    let (umi_start, umi_end) = get_umi_positions(&captures)?;
-
-    let head = add_to_the_header(barcode_type, read, umi_start, umi_end)?;
     let seq = [&read.seq()[..start], &read.seq()[end..]].concat();
     let qual = [&read.qual()[..start], &read.qual()[end..]].concat();
 
-    create_owned_record(head, seq, qual)
+    create_owned_record(read.head().to_vec(), seq, qual)
 }
 
-pub fn get_new_read_without_adapter_trimming(
+pub fn get_read_with_barcodes_in_header(
     barcode_name: &str,
-    captures: Captures,
+    captures: &Captures,
     record: &RefRecord,
 ) -> Result<OwnedRecord, Error> {
     let (umi_start, umi_end) = get_umi_positions(&captures)?;
+    // let (sample_barcode_start, sample_barcode_end) = get_sample_barcode_positions(&captures)?;
 
     let head = add_to_the_header(barcode_name, record, umi_start, umi_end)?;
     let seq = record.seq().to_vec();
@@ -123,13 +126,15 @@ pub fn create_new_read(
 ) -> Option<seq_io::fastq::OwnedRecord> {
     let umi_capture_group_name = BarcodeType::Umi.to_string();
     match (read_captures, skip_trimming) {
-        (Ok(Some(captures)), true) => Some(
-            get_new_read_with_adapter_trimming(&umi_capture_group_name, captures, record).ok()?,
-        ),
-        (Ok(Some(captures)), false) => Some(
-            get_new_read_without_adapter_trimming(&umi_capture_group_name, captures, record)
-                .ok()?,
-        ),
+        (Ok(Some(captures)), true) => Some(get_read_with_barcodes_in_header(
+            &umi_capture_group_name, &captures, record
+        ).ok()?),
+        (Ok(Some(captures)), false) => {
+            let new_read = get_read_with_barcodes_in_header(
+                &umi_capture_group_name, &captures, record
+            ).ok()?;
+            Some(trim_adapters(captures, &new_read).ok()?)
+        },
         (Ok(None), _) => Some(OwnedRecord {
             head: record.head().to_vec(),
             seq: record.seq().to_vec(),

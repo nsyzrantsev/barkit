@@ -47,7 +47,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> V
     cases
 }
 
-pub fn create_fuzzy(pattern: &str, max_error: &usize) -> String {
+pub fn get_with_errors(pattern: &str, max_error: &usize) -> String {
     let regex_pattern = Regex::new(ADAPTER_PATTERN_REGEX).unwrap();
 
     let mut result = String::new();
@@ -103,6 +103,6 @@ mod tests {
     )]
     #[case("^(?P<UMI>[ATGCN]{3})", "^(?P<UMI>[ATGCN]{3})", 1)]
     fn test_create_fuzzy(#[case] expected: &str, #[case] pattern: &str, #[case] max_error: usize) {
-        assert_eq!(expected, pattern::create_fuzzy(pattern, &max_error))
+        assert_eq!(expected, pattern::get_with_errors(pattern, &max_error))
     }
 }
