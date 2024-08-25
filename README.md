@@ -35,7 +35,7 @@ Parse the first twelve nucleotides as a UMI from each read:
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<UMI>[ATGCN]{12})" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
-Parse the first sixteen nucleotides as a single-cell barcode from each read before the atgccat sequence:
+Parse the first sixteen nucleotides as a single-cell barcode from each read before the `atgccat` sequence:
 
 ```
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<CB>[ATGCN]{16})atgccat" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
