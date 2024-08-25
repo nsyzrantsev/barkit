@@ -71,7 +71,7 @@ pub enum Commands {
         #[arg(short = 'q', long, action = ArgAction::SetTrue)]
         quite: bool,
 
-        /// Suppress any logs
+        /// Overwrite existing file
         #[arg(short = 'w', long, action = ArgAction::SetTrue)]
         overwrite: bool,
     },
