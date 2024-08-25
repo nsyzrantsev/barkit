@@ -3,50 +3,43 @@
 > [!WARNING]  
 > This tool is under development. Please use the first release version when it becomes available.
 
-BarKit (Barcodes Toolkit) is a toolkit designed for the manipulation of FASTQ barcodes.
+BarKit (Barcodes Toolkit) is a toolkit designed for manipulating FASTQ barcodes.
 
-## Building from source
+## Building from Source
 
 ```bash
 cargo build --release
 sudo mv barkit /usr/local/bin/
 ```
 
+## Extract Command
 
-## Extract command
+The extract command is designed to parse barcode sequences from FASTQ reads using approximate regex matching based on a provided pattern.
 
-The `extract` command is designed to parse any barcode sequence from FASTQ reads using approximate regex matching based on a provided pattern.
-
-All parsed barcode sequences are moved to the read header with base quality separated colon:
+All parsed barcode sequences are moved to the read header with base quality separated by colons:
 
 ```
 @SEQ_ID UMI:ATGC:???? CB:ATGC:???? SB:ATGC:????
 ```
 
-* `UMI` means UMI (molecular barcode)
-* `CB` = cell barcode
-* `SB` = sample barcode
+* UMI: Unique Molecular Identifier (molecular barcode)
+* CB: Cell Barcode
+* SB: Sample Barcode
 
-> [!NOTE]
-> `barkit extract` supports both reads: **single-end** and **paired-end**!
-
-> [!WARNING]
-> barcode pattern should be in [Unicode](https://github.com/rust-lang/regex/blob/master/UNICODE.md) format.
 
 ### Examples
 
+Parse the first twelve nucleotides as a UMI from each read:
 
-Parse first twelve nucleotides as an UMI from each read:
 ```
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<UMI>[ATGCN]{12})" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
+Parse the first sixteen nucleotides as a single-cell barcode from each read before the atgccat sequence:
 
-Parse first sixteen nucleotides as an single cell barcode from each read before `atgccat` sequence:
 ```
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<CB>[ATGCN]{16})atgccat" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
 > [!NOTE]
-> Use lower case letters for fuzzy match patterns
-
+> Use lowercase letters for fuzzy match patterns.
