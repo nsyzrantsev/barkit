@@ -137,19 +137,19 @@ pub fn create_writer(
     file: &str,
     compression: &CompressionType,
     threads_num: usize,
-    overwrite: bool
+    force: bool
 ) -> Result<WriterType, error::Error> {
     let path = Path::new(file);
 
-    // Check if file exists and handle overwrite logic
-    if path.exists() && !overwrite {
+    // Check if file exists and handle force logic
+    if path.exists() && !force {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
-            format!("File {} already exists and overwrite is set to false", file),
+            format!("File {} already exists and force is set to false", file),
         ).into());
     }
 
-    let file = if overwrite {
+    let file = if force {
         File::create(path)?
     } else {
         OpenOptions::new().write(true).create_new(true).open(path)?

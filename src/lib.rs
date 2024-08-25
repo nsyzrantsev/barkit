@@ -67,13 +67,13 @@ pub enum Commands {
         #[arg(long, action = ArgAction::SetTrue, conflicts_with_all = ["gz", "bgz", "mgz"])]
         lz4: bool,
 
-        /// Suppress any logs
+        /// Be quiet and do not show extra information
         #[arg(short = 'q', long, action = ArgAction::SetTrue)]
-        quite: bool,
+        quiet: bool,
 
-        /// Overwrite existing file
-        #[arg(short = 'w', long, action = ArgAction::SetTrue)]
-        overwrite: bool,
+        /// Overwrite output files
+        #[arg(short = 'f', long, action = ArgAction::SetTrue)]
+        force: bool,
     },
 }
 

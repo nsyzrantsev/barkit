@@ -22,8 +22,8 @@ pub fn run(
     skip_trimming: bool,
     max_error: usize,
     output_compression: CompressionType,
-    quite: bool,
-    overwrite: bool
+    quiet: bool,
+    force: bool
 ) {
     match (fq2, out_fq2, pattern1, pattern2) {
         (Some(fq2), Some(out_fq2), pattern1, pattern2) => process_pair_end_fastq(
@@ -39,8 +39,8 @@ pub fn run(
             skip_trimming,
             max_error,
             output_compression,
-            quite,
-            overwrite
+            quiet,
+            force
         ),
         (None, None, Some(pattern1), None) => process_single_end_fastq(
             fq1,
@@ -52,8 +52,8 @@ pub fn run(
             skip_trimming,
             max_error,
             output_compression,
-            quite,
-            overwrite
+            quiet,
+            force
         ),
         _ => println!(
             "Something unexpected happend... Please, check provided arguments."
@@ -72,16 +72,16 @@ fn process_single_end_fastq(
     skip_trimming: bool,
     max_error: usize,
     output_compression: CompressionType,
-    quite: bool,
-    overwrite: bool
+    quiet: bool,
+    force: bool
 ) {
     
     let mut reader =
         io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read, &output_compression, threads, overwrite)
+    let writer = io::create_writer(&out_read, &output_compression, threads, force)
         .expect("Failed to create writer");
 
-    if !quite {
+    if !quiet {
         println!(
             "{} Parsing barcode patterns...",
             style("[1/3]").bold().dim()
@@ -90,7 +90,7 @@ fn process_single_end_fastq(
 
     let barcode_re = BarcodeRegex::new(&pattern, max_error).expect("REASON");
 
-    let progress_bar = match quite {
+    let progress_bar = match quiet {
         false => {
             println!("{} Estimating reads count...", style("[2/3]").bold().dim());
             Some(
@@ -102,7 +102,7 @@ fn process_single_end_fastq(
     };
 
 
-    if !quite {
+    if !quiet {
         println!(
             "{} Extracting barcodes from reads...",
             style("[3/3]").bold().dim()
@@ -154,20 +154,20 @@ fn process_pair_end_fastq(
     skip_trimming: bool,
     max_error: usize,
     output_compression: CompressionType,
-    quite: bool,
-    overwrite: bool
+    quiet: bool,
+    force: bool
 ) {
     let mut reader1 =
         io::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
     let mut reader2 =
         io::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
 
-    let writer1 = io::create_writer(&out_fq1, &output_compression, threads, overwrite)
+    let writer1 = io::create_writer(&out_fq1, &output_compression, threads, force)
         .expect("Failed to write output forward reads");
-    let writer2 = io::create_writer(&out_fq2, &output_compression, threads, overwrite)
+    let writer2 = io::create_writer(&out_fq2, &output_compression, threads, force)
         .expect("Failed to write output reverse reads");
 
-    if !quite {
+    if !quiet {
         println!(
             "{} Parsing barcode patterns...",
             style("[1/3]").bold().dim()
@@ -183,7 +183,7 @@ fn process_pair_end_fastq(
     });
 
     let started = Instant::now();
-    let progress_bar = match quite {
+    let progress_bar = match quiet {
         false => {
             println!("{} Estimating reads count...", style("[2/3]").bold().dim());
             Some(
@@ -194,7 +194,7 @@ fn process_pair_end_fastq(
         true => None,
     };
 
-    if !quite {
+    if !quiet {
         println!(
             "{} Extracting barcodes from reads...",
             style("[3/3]").bold().dim()
