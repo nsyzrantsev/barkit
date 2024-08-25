@@ -70,6 +70,10 @@ pub enum Commands {
         /// Suppress any logs
         #[arg(short = 'q', long, action = ArgAction::SetTrue)]
         quite: bool,
+
+        /// Suppress any logs
+        #[arg(short = 'w', long, action = ArgAction::SetTrue)]
+        overwrite: bool,
     },
 }
 

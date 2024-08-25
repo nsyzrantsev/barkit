@@ -20,6 +20,7 @@ fn main() {
             mgz,
             lz4,
             quite,
+            overwrite
         } => {
             let output_compression =
                 extract::io::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
@@ -37,6 +38,7 @@ fn main() {
                 *max_error,
                 output_compression,
                 *quite,
+                *overwrite
             );
         }
     }

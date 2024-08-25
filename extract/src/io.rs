@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Mutex, MutexGuard};
@@ -137,10 +137,25 @@ pub fn create_writer(
     file: &str,
     compression: &CompressionType,
     threads_num: usize,
+    overwrite: bool
 ) -> Result<WriterType, error::Error> {
     let path = Path::new(file);
-    let file = File::create(path)?;
-    let writer: Box<dyn std::io::Write> = match compression {
+
+    // Check if file exists and handle overwrite logic
+    if path.exists() && !overwrite {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("File {} already exists and overwrite is set to false", file),
+        ).into());
+    }
+
+    let file = if overwrite {
+        File::create(path)?
+    } else {
+        OpenOptions::new().write(true).create_new(true).open(path)?
+    };
+
+    let writer: Box<dyn Write> = match compression {
         CompressionType::Gzip => Box::new(GzEncoder::new(file, Compression::default())),
         CompressionType::Bgzf => Box::new(
             ParCompressBuilder::<Bgzf>::new()
@@ -157,6 +172,7 @@ pub fn create_writer(
         CompressionType::Lz4 => Box::new(EncoderBuilder::new().build(file)?),
         _ => Box::new(file),
     };
+
     Ok(Rc::new(Mutex::new(BufWriter::with_capacity(
         WRITE_BUFFER_SIZE,
         writer,

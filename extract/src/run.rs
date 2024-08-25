@@ -23,6 +23,7 @@ pub fn run(
     max_error: usize,
     output_compression: CompressionType,
     quite: bool,
+    overwrite: bool
 ) {
     match (fq2, out_fq2, pattern1, pattern2) {
         (Some(fq2), Some(out_fq2), pattern1, pattern2) => process_pair_end_fastq(
@@ -39,6 +40,7 @@ pub fn run(
             max_error,
             output_compression,
             quite,
+            overwrite
         ),
         (None, None, Some(pattern1), None) => process_single_end_fastq(
             fq1,
@@ -51,6 +53,7 @@ pub fn run(
             max_error,
             output_compression,
             quite,
+            overwrite
         ),
         _ => println!(
             "Something unexpected happend... Please, check provided arguments."
@@ -70,7 +73,14 @@ fn process_single_end_fastq(
     max_error: usize,
     output_compression: CompressionType,
     quite: bool,
+    overwrite: bool
 ) {
+    
+    let mut reader =
+        io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
+    let writer = io::create_writer(&out_read, &output_compression, threads, overwrite)
+        .expect("Failed to create writer");
+
     if !quite {
         println!(
             "{} Parsing barcode patterns...",
@@ -91,10 +101,6 @@ fn process_single_end_fastq(
         true => None,
     };
 
-    let mut reader =
-        io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read, &output_compression, threads)
-        .expect("Failed to create writer");
 
     if !quite {
         println!(
@@ -149,7 +155,18 @@ fn process_pair_end_fastq(
     max_error: usize,
     output_compression: CompressionType,
     quite: bool,
+    overwrite: bool
 ) {
+    let mut reader1 =
+        io::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
+    let mut reader2 =
+        io::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
+
+    let writer1 = io::create_writer(&out_fq1, &output_compression, threads, overwrite)
+        .expect("Failed to write output forward reads");
+    let writer2 = io::create_writer(&out_fq2, &output_compression, threads, overwrite)
+        .expect("Failed to write output reverse reads");
+
     if !quite {
         println!(
             "{} Parsing barcode patterns...",
@@ -176,16 +193,6 @@ fn process_pair_end_fastq(
         }
         true => None,
     };
-
-    let mut reader1 =
-        io::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
-    let mut reader2 =
-        io::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
-
-    let writer1 = io::create_writer(&out_fq1, &output_compression, threads)
-        .expect("Failed to write output forward reads");
-    let writer2 = io::create_writer(&out_fq2, &output_compression, threads)
-        .expect("Failed to write output reverse reads");
 
     if !quite {
         println!(
