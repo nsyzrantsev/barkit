@@ -33,6 +33,7 @@ const TRANSLATION_TABLE: [u8; 256] = {
 pub enum BarcodeType {
     Umi,
     Sample,
+    Cell
 }
 
 impl fmt::Display for BarcodeType {
@@ -40,6 +41,7 @@ impl fmt::Display for BarcodeType {
         let barcode_str = match self {
             BarcodeType::Umi => "UMI",
             BarcodeType::Sample => "SB",
+            BarcodeType::Cell => "CB",
         };
         write!(f, "{}", barcode_str)
     }
@@ -50,6 +52,7 @@ impl BarcodeType {
         match name {
             "UMI" => Ok(BarcodeType::Umi),
             "SB" => Ok(BarcodeType::Sample),
+            "CB" => Ok(BarcodeType::Cell),
             _ => Err(Error::UnexpectedCaptureGroupName(name.to_owned())),
         }
     }

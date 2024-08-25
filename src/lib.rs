@@ -13,19 +13,19 @@ pub enum Commands {
     #[clap(arg_required_else_help = true)]
     Extract {
         /// Input forward FASTQ file
-        #[arg(short = '1', long, requires = "out_fq1")]
+        #[arg(short = '1', long, value_name = "IN_FASTQ1", requires = "out_fq1")]
         fq1: String,
 
         /// Input reverse FASTQ file
-        #[arg(short = '2', long, requires_all = ["fq1", "out_fq2"])]
+        #[arg(short = '2', long, value_name = "IN_FASTQ2", requires_all = ["fq1", "out_fq2"])]
         fq2: Option<String>,
 
         /// Output forward FASTQ file
-        #[arg(short = 'o', long)]
+        #[arg(short = 'o', long, value_name = "OUT_FASTQ1")]
         out_fq1: String,
 
         /// Output reverse FASTQ file
-        #[arg(short = 'O', long, requires = "out_fq1")]
+        #[arg(short = 'O', long, value_name = "OUT_FASTQ2", requires = "out_fq1")]
         out_fq2: Option<String>,
 
         #[clap(flatten)]
