@@ -31,13 +31,13 @@ All parsed barcode sequences are moved to the read header with base quality sepa
 
 Parse the first twelve nucleotides as a UMI from each read:
 
-```
+```bash
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<UMI>[ATGCN]{12})" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
 Parse the first sixteen nucleotides as a single-cell barcode from each read before the `atgccat` sequence:
 
-```
+```bash
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<CB>[ATGCN]{16})atgccat" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
