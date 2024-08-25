@@ -33,7 +33,6 @@ pub enum CompressionType {
     No,
 }
 
-
 impl CompressionType {
     fn magic_bytes(&self) -> &'static [u8] {
         match self {
@@ -57,12 +56,12 @@ impl CompressionType {
 
     fn get_input_compression_type(path: &Path) -> CompressionType {
         let mut buffer = [0u8; 16];
-    
+
         File::open(path)
             .expect("couldn't open file")
             .read_exact(&mut buffer)
             .expect("couldn't read the first two bytes of file");
-    
+
         if &buffer[..2] == CompressionType::Gzip.magic_bytes() {
             CompressionType::Gzip
         } else if &buffer[..4] == CompressionType::Lz4.magic_bytes() {
@@ -75,9 +74,13 @@ impl CompressionType {
     }
 }
 
-pub fn get_reads_count(file: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> usize {
+pub fn get_reads_count(
+    file: &str,
+    threads_num: usize,
+    buffer_size_in_megabytes: Option<usize>,
+) -> usize {
     create_reader(file, threads_num, buffer_size_in_megabytes)
-        .expect(&format!("couldn't open file {}", file))
+        .unwrap_or_else(|_| panic!("couldn't open file {}", file))
         .into_records()
         .count()
 }
@@ -88,7 +91,7 @@ pub fn create_reader(
     buffer_size_in_megabytes: Option<usize>,
 ) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, error::Error> {
     let path = Path::new(fastq_path);
-    let file = File::open(path).expect(&format!("couldn't open file {}", fastq_path));
+    let file = File::open(path).unwrap_or_else(|_| panic!("couldn't open file {}", fastq_path));
 
     let buffer_size_in_bytes = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
 
@@ -160,16 +163,8 @@ pub fn create_writer(
     ))))
 }
 
-fn write_read_to_file(
-    read: &OwnedRecord,
-    writer: &mut MutexGuard<BufWriter<Box<dyn Write>>>,
-) {
-    let _ = seq_io::fastq::write_to(
-        &mut **writer,
-        &read.head,
-        &read.seq,
-        &read.qual,
-    );
+fn write_read_to_file(read: &OwnedRecord, writer: &mut MutexGuard<BufWriter<Box<dyn Write>>>) {
+    let _ = seq_io::fastq::write_to(&mut **writer, &read.head, &read.seq, &read.qual);
 }
 
 pub fn save_pair_end_reads_to_file(

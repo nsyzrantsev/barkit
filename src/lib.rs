@@ -70,7 +70,7 @@ pub enum Commands {
         /// Suppress any logs
         #[arg(short = 'q', long, action = ArgAction::SetTrue)]
         quite: bool,
-    }
+    },
 }
 
 #[derive(Debug, clap::Args)]

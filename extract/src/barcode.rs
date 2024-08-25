@@ -45,13 +45,12 @@ impl fmt::Display for BarcodeType {
     }
 }
 
-
 impl BarcodeType {
     fn get_barcode_type(name: &str) -> Result<Self, Error> {
         match name {
             "UMI" => Ok(BarcodeType::Umi),
             "SB" => Ok(BarcodeType::Sample),
-            _ => Err(Error::UnexpectedCaptureGroupName(name.to_owned()))
+            _ => Err(Error::UnexpectedCaptureGroupName(name.to_owned())),
         }
     }
 }
@@ -59,7 +58,7 @@ impl BarcodeType {
 #[derive(Clone)]
 pub struct BarcodeRegex {
     regex: Regex,
-    barcode_types: Vec::<BarcodeType>
+    barcode_types: Vec<BarcodeType>,
 }
 
 impl BarcodeRegex {
@@ -67,7 +66,10 @@ impl BarcodeRegex {
         let fuzzy_pattern = pattern::get_with_errors(pattern, &max_error);
         let regex = Regex::new(&fuzzy_pattern)?;
         let barcode_types = Self::parse_capture_groups(&regex)?;
-        Ok(Self { regex, barcode_types })
+        Ok(Self {
+            regex,
+            barcode_types,
+        })
     }
 
     pub fn get_captures<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures, Error> {
@@ -77,17 +79,12 @@ impl BarcodeRegex {
         }
     }
 
-    fn parse_capture_groups(regex: &Regex) -> Result<Vec::<BarcodeType>, Error>{
+    fn parse_capture_groups(regex: &Regex) -> Result<Vec<BarcodeType>, Error> {
         let mut capture_groups = Vec::<BarcodeType>::new();
-        for capture_group in regex.capture_names().collect::<Vec<_>>() {
-            match capture_group {
-                Some(val) => capture_groups.push(
-                    BarcodeType::get_barcode_type(val)?
-                ),
-                None => ()
-            }
-        };
-        if capture_groups.len() == 0 {
+        for capture_group in regex.capture_names().collect::<Vec<_>>().into_iter().flatten() {
+            capture_groups.push(BarcodeType::get_barcode_type(capture_group)?)
+        }
+        if capture_groups.is_empty() {
             return Err(Error::BarcodeCaptureGroupNotFound(regex.to_string()));
         }
         Ok(capture_groups)
@@ -97,19 +94,20 @@ impl BarcodeRegex {
 pub struct BarcodeParser {
     barcode_regex: BarcodeRegex,
     skip_trimming: bool,
-    rc_barcodes: bool
+    rc_barcodes: bool,
 }
 
 impl BarcodeParser {
-    pub fn new(barcode_regex: Option<BarcodeRegex>, skip_trimming: bool, rc_barcodes: bool) -> Option<Self> {
-        match barcode_regex {
-            Some(regex) => Some(BarcodeParser {
-                barcode_regex: regex,
-                skip_trimming,
-                rc_barcodes
-            }),
-            None => None
-        }
+    pub fn new(
+        barcode_regex: Option<BarcodeRegex>,
+        skip_trimming: bool,
+        rc_barcodes: bool,
+    ) -> Option<Self> {
+        barcode_regex.map(|regex| BarcodeParser {
+            barcode_regex: regex,
+            skip_trimming,
+            rc_barcodes,
+        })
     }
 
     pub fn extract_barcodes(&self, record: &RefRecord) -> Option<OwnedRecord> {
@@ -121,27 +119,22 @@ impl BarcodeParser {
         } else {
             read_captures
         };
-        self.create_new_read(
-            read_captures.map(Some),
-            record,
-        )
+        self.create_new_read(read_captures.map(Some), record)
     }
 
     fn create_new_read(
         &self,
         read_captures: Result<Option<Captures>, Error>,
-        record: &RefRecord
+        record: &RefRecord,
     ) -> Option<seq_io::fastq::OwnedRecord> {
         match (read_captures, self.skip_trimming) {
-            (Ok(Some(captures)), true) => Some(self.get_read_with_new_header(
-                &captures, record
-            ).ok()?),
+            (Ok(Some(captures)), true) => {
+                Some(self.get_read_with_new_header(&captures, record).ok()?)
+            }
             (Ok(Some(captures)), false) => {
-                let new_read = self.get_read_with_new_header(
-                    &captures, record
-                ).ok()?;
+                let new_read = self.get_read_with_new_header(&captures, record).ok()?;
                 Some(trim_adapters(captures, &new_read).ok()?)
-            },
+            }
             (Ok(None), _) => Some(OwnedRecord {
                 head: record.head().to_vec(),
                 seq: record.seq().to_vec(),
@@ -159,11 +152,19 @@ impl BarcodeParser {
         let mut head = record.head().to_vec();
         let seq = record.seq().to_vec();
         let qual = record.qual().to_vec();
-        
+
         for barcode in &self.barcode_regex.barcode_types {
             let barcode_name = barcode.to_string();
-            let (barcode_start, barcode_end) = get_barcode_match_positions(&barcode_name, &captures)?;
-            head = add_to_the_header(&barcode_name, &head, &seq, &qual, barcode_start, barcode_end)?;
+            let (barcode_start, barcode_end) =
+                get_barcode_match_positions(&barcode_name, captures)?;
+            head = add_to_the_header(
+                &barcode_name,
+                &head,
+                &seq,
+                &qual,
+                barcode_start,
+                barcode_end,
+            )?;
         }
 
         Ok(OwnedRecord { head, seq, qual })
@@ -189,10 +190,7 @@ fn get_barcode_match_positions(
     Ok((full_match.start(), full_match.end()))
 }
 
-fn trim_adapters(
-    captures: Captures,
-    record: &OwnedRecord,
-) -> Result<OwnedRecord, Error> {
+fn trim_adapters(captures: Captures, record: &OwnedRecord) -> Result<OwnedRecord, Error> {
     let (start, end) = get_full_match_positions(&captures)?;
     let seq = [&record.seq()[..start], &record.seq()[end..]].concat();
     let qual = [&record.qual()[..start], &record.qual()[end..]].concat();
@@ -200,15 +198,15 @@ fn trim_adapters(
     Ok(OwnedRecord {
         head: record.head().to_vec(),
         seq,
-        qual
+        qual,
     })
 }
 
 fn add_to_the_header(
     barcode_type: &str,
-    head: &Vec::<u8>,
-    seq: &Vec::<u8>,
-    qual: &Vec::<u8>,
+    head: &[u8],
+    seq: &[u8],
+    qual: &[u8],
     start: usize,
     end: usize,
 ) -> Result<Vec<u8>, Error> {

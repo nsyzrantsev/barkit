@@ -19,9 +19,10 @@ fn main() {
             bgz,
             mgz,
             lz4,
-            quite
+            quite,
         } => {
-            let output_compression = extract::io::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
+            let output_compression =
+                extract::io::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
             extract::run::run(
                 fq1.to_string(),
                 fq2.clone(),
@@ -35,7 +36,7 @@ fn main() {
                 *skip_trimming,
                 *max_error,
                 output_compression,
-                *quite
+                *quite,
             );
         }
     }
