@@ -10,6 +10,8 @@ pub enum Error {
     Regex(#[from] regex::Error),
     #[error("{0} capture group not found in your pattern")]
     BarcodeCaptureGroupNotFound(String),
+    #[error("Provided unexpected barcode capture group {0}")]
+    UnexpectedCaptureGroupName(String),
     #[error("Failed to read a file: {0}")]
     FileRead(#[from] std::io::Error),
     #[error("No match")]
@@ -24,6 +26,9 @@ impl Clone for Error {
             Error::Regex(err) => Error::Regex(err.clone()),
             Error::BarcodeCaptureGroupNotFound(barcode_type) => {
                 Error::BarcodeCaptureGroupNotFound(barcode_type.clone())
+            }
+            Error::UnexpectedCaptureGroupName(capture_group) => {
+                Error::UnexpectedCaptureGroupName(capture_group.clone())
             }
             Error::FileRead(err) => Error::FileRead(err.kind().into()),
             Error::PatternNotMatched => Error::PatternNotMatched,

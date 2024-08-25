@@ -29,6 +29,7 @@ const TRANSLATION_TABLE: [u8; 256] = {
     table
 };
 
+#[derive(Clone)]
 pub enum BarcodeType {
     Umi,
     Sample,
@@ -36,22 +37,37 @@ pub enum BarcodeType {
 
 impl fmt::Display for BarcodeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BarcodeType::Umi => write!(f, "UMI"),
-            BarcodeType::Sample => write!(f, "SB"),
+        let barcode_str = match self {
+            BarcodeType::Umi => "UMI",
+            BarcodeType::Sample => "SB",
+        };
+        write!(f, "{}", barcode_str)
+    }
+}
+
+
+impl BarcodeType {
+    fn get_barcode_type(name: &str) -> Result<Self, Error> {
+        match name {
+            "UMI" => Ok(BarcodeType::Umi),
+            "SB" => Ok(BarcodeType::Sample),
+            _ => Err(Error::UnexpectedCaptureGroupName(name.to_owned()))
         }
     }
 }
 
-pub struct BarcodeParser {
+#[derive(Clone)]
+pub struct BarcodeRegex {
     regex: Regex,
+    barcode_types: Vec::<BarcodeType>
 }
 
-impl BarcodeParser {
+impl BarcodeRegex {
     pub fn new(pattern: &str, max_error: usize) -> Result<Self, Error> {
         let fuzzy_pattern = pattern::get_with_errors(pattern, &max_error);
         let regex = Regex::new(&fuzzy_pattern)?;
-        Ok(Self { regex })
+        let barcode_types = Self::parse_capture_groups(&regex)?;
+        Ok(Self { regex, barcode_types })
     }
 
     pub fn get_captures<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures, Error> {
@@ -59,6 +75,98 @@ impl BarcodeParser {
             Some(capture) => Ok(capture),
             None => Err(Error::PatternNotMatched),
         }
+    }
+
+    fn parse_capture_groups(regex: &Regex) -> Result<Vec::<BarcodeType>, Error>{
+        let mut capture_groups = Vec::<BarcodeType>::new();
+        for capture_group in regex.capture_names().collect::<Vec<_>>() {
+            match capture_group {
+                Some(val) => capture_groups.push(
+                    BarcodeType::get_barcode_type(val)?
+                ),
+                None => ()
+            }
+        };
+        if capture_groups.len() == 0 {
+            return Err(Error::BarcodeCaptureGroupNotFound(regex.to_string()));
+        }
+        Ok(capture_groups)
+    }
+}
+
+pub struct BarcodeParser {
+    barcode_regex: BarcodeRegex,
+    skip_trimming: bool,
+    rc_barcodes: bool
+}
+
+impl BarcodeParser {
+    pub fn new(barcode_regex: Option<BarcodeRegex>, skip_trimming: bool, rc_barcodes: bool) -> Option<Self> {
+        match barcode_regex {
+            Some(regex) => Some(BarcodeParser {
+                barcode_regex: regex,
+                skip_trimming,
+                rc_barcodes
+            }),
+            None => None
+        }
+    }
+
+    pub fn extract_barcodes(&self, record: &RefRecord) -> Option<OwnedRecord> {
+        let read_captures = self.barcode_regex.get_captures(record.seq());
+        let read_seq_rc: Vec<u8>;
+        let read_captures = if read_captures.is_err() && self.rc_barcodes {
+            read_seq_rc = get_reverse_complement(record.seq());
+            self.barcode_regex.get_captures(&read_seq_rc)
+        } else {
+            read_captures
+        };
+        self.create_new_read(
+            read_captures.map(Some),
+            record,
+        )
+    }
+
+    fn create_new_read(
+        &self,
+        read_captures: Result<Option<Captures>, Error>,
+        record: &RefRecord
+    ) -> Option<seq_io::fastq::OwnedRecord> {
+        match (read_captures, self.skip_trimming) {
+            (Ok(Some(captures)), true) => Some(self.get_read_with_new_header(
+                &captures, record
+            ).ok()?),
+            (Ok(Some(captures)), false) => {
+                let new_read = self.get_read_with_new_header(
+                    &captures, record
+                ).ok()?;
+                Some(trim_adapters(captures, &new_read).ok()?)
+            },
+            (Ok(None), _) => Some(OwnedRecord {
+                head: record.head().to_vec(),
+                seq: record.seq().to_vec(),
+                qual: record.qual().to_vec(),
+            }),
+            (Err(_), _) => None,
+        }
+    }
+
+    fn get_read_with_new_header(
+        &self,
+        captures: &Captures,
+        record: &RefRecord,
+    ) -> Result<OwnedRecord, Error> {
+        let mut head = record.head().to_vec();
+        let seq = record.seq().to_vec();
+        let qual = record.qual().to_vec();
+        
+        for barcode in &self.barcode_regex.barcode_types {
+            let barcode_name = barcode.to_string();
+            let (barcode_start, barcode_end) = get_barcode_match_positions(&barcode_name, &captures)?;
+            head = add_to_the_header(&barcode_name, &head, &seq, &qual, barcode_start, barcode_end)?;
+        }
+
+        Ok(OwnedRecord { head, seq, qual })
     }
 }
 
@@ -81,83 +189,36 @@ fn get_barcode_match_positions(
     Ok((full_match.start(), full_match.end()))
 }
 
-fn create_owned_record(head: Vec<u8>, seq: Vec<u8>, qual: Vec<u8>) -> Result<OwnedRecord, Error> {
-    Ok(OwnedRecord { head, seq, qual })
-}
-
-fn get_umi_positions(captures: &Captures) -> Result<(usize, usize), Error> {
-    get_barcode_match_positions(&BarcodeType::Umi.to_string(), captures)
-}
-
-fn get_sample_barcode_positions(captures: &Captures) -> Result<(usize, usize), Error> {
-    get_barcode_match_positions(&BarcodeType::Sample.to_string(), captures)
-}
-
 fn trim_adapters(
     captures: Captures,
-    read: &OwnedRecord,
+    record: &OwnedRecord,
 ) -> Result<OwnedRecord, Error> {
     let (start, end) = get_full_match_positions(&captures)?;
-    let seq = [&read.seq()[..start], &read.seq()[end..]].concat();
-    let qual = [&read.qual()[..start], &read.qual()[end..]].concat();
+    let seq = [&record.seq()[..start], &record.seq()[end..]].concat();
+    let qual = [&record.qual()[..start], &record.qual()[end..]].concat();
 
-    create_owned_record(read.head().to_vec(), seq, qual)
-}
-
-fn get_read_with_new_header(
-    barcode_name: &str,
-    captures: &Captures,
-    record: &RefRecord,
-) -> Result<OwnedRecord, Error> {
-    let (umi_start, umi_end) = get_umi_positions(&captures)?;
-    // let (sample_barcode_start, sample_barcode_end) = get_sample_barcode_positions(&captures)?;
-
-    let head = add_to_the_header(barcode_name, record, umi_start, umi_end)?;
-    let seq = record.seq().to_vec();
-    let qual = record.qual().to_vec();
-
-    create_owned_record(head, seq, qual)
-}
-
-pub fn create_new_read(
-    read_captures: Result<Option<Captures>, Error>,
-    record: &RefRecord,
-    skip_trimming: bool,
-) -> Option<seq_io::fastq::OwnedRecord> {
-    let umi_capture_group_name = BarcodeType::Umi.to_string();
-    match (read_captures, skip_trimming) {
-        (Ok(Some(captures)), true) => Some(get_read_with_new_header(
-            &umi_capture_group_name, &captures, record
-        ).ok()?),
-        (Ok(Some(captures)), false) => {
-            let new_read = get_read_with_new_header(
-                &umi_capture_group_name, &captures, record
-            ).ok()?;
-            Some(trim_adapters(captures, &new_read).ok()?)
-        },
-        (Ok(None), _) => Some(OwnedRecord {
-            head: record.head().to_vec(),
-            seq: record.seq().to_vec(),
-            qual: record.qual().to_vec(),
-        }),
-        (Err(_), _) => None,
-    }
+    Ok(OwnedRecord {
+        head: record.head().to_vec(),
+        seq,
+        qual
+    })
 }
 
 fn add_to_the_header(
     barcode_type: &str,
-    read: &RefRecord,
+    head: &Vec::<u8>,
+    seq: &Vec::<u8>,
+    qual: &Vec::<u8>,
     start: usize,
     end: usize,
 ) -> Result<Vec<u8>, Error> {
-    let read_header = read.head();
-    let barcode_seq = &read.seq()[start..end];
-    let barcode_qual = &read.qual()[start..end];
+    let barcode_seq = &seq[start..end];
+    let barcode_qual = &qual[start..end];
 
     let mut result = Vec::with_capacity(
-        read_header.len() + barcode_type.len() + barcode_seq.len() + barcode_qual.len() + 3,
+        head.len() + barcode_type.len() + barcode_seq.len() + barcode_qual.len() + 3,
     );
-    result.extend_from_slice(read_header);
+    result.extend_from_slice(head);
     result.extend_from_slice(
         format!(" {}:{}:", barcode_type, std::str::from_utf8(barcode_seq)?).as_bytes(),
     );

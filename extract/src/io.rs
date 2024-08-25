@@ -75,7 +75,7 @@ impl CompressionType {
     }
 }
 
-pub fn get_lines_count(file: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> usize {
+pub fn get_reads_count(file: &str, threads_num: usize, buffer_size_in_megabytes: Option<usize>) -> usize {
     create_reader(file, threads_num, buffer_size_in_megabytes)
         .expect(&format!("couldn't open file {}", file))
         .into_records()

@@ -7,7 +7,7 @@ use console::style;
 
 use crate::error;
 use crate::logger;
-use crate::barcode::{self, BarcodeParser};
+use crate::barcode::{self, BarcodeRegex};
 use crate::io::{self, CompressionType};
 
 #[allow(clippy::too_many_arguments)]
@@ -73,19 +73,19 @@ fn process_single_end_fastq(
     output_compression: CompressionType,
     quite: bool
 ) {
+    if !quite {
+        println!("{} Parsing barcode patterns...", style("[1/3]").bold().dim());
+    }
+    
+    let barcode_re = BarcodeRegex::new(&pattern, max_error).expect("REASON");
+    
     let progress_bar = match quite {
         false => {
-            println!("{} Estimating reads count...", style("[1/3]").bold().dim());
+            println!("{} Estimating reads count...", style("[2/3]").bold().dim());
             Some(logger::create_progress_bar(&read, threads, max_memory).expect("Failed to create progress bar"))
         },
         true => None
     };
-
-    let barcode = BarcodeParser::new(&pattern, max_error).expect("REASON");
-
-    if !quite {
-        println!("{} Parsing barcode patterns...", style("[2/3]").bold().dim());
-    }
 
     let mut reader =
         io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
@@ -110,16 +110,12 @@ fn process_single_end_fastq(
             let result_reads: Vec<_> = records
                 .par_iter()
                 .filter_map(|record| {
-                    let read_captures: Result<regex::bytes::Captures, error::Error> =
-                        barcode.get_captures(record.seq());
-                    let read_seq_rc: Vec<u8>;
-                    let read_captures = if read_captures.is_err() && rc_barcodes {
-                        read_seq_rc = barcode::get_reverse_complement(record.seq());
-                        barcode.get_captures(&read_seq_rc)
-                    } else {
-                        read_captures
-                    };
-                    barcode::create_new_read(read_captures.map(Some), record, skip_trimming)
+                    let barcodes_parser = barcode::BarcodeParser::new(
+                        Some(barcode_re.clone()),
+                        skip_trimming,
+                        rc_barcodes
+                    );
+                    barcodes_parser?.extract_barcodes(record)
                 })
                 .collect();
 
@@ -155,26 +151,26 @@ fn process_pair_end_fastq(
     output_compression: CompressionType,
     quite: bool
 ) {
+    if !quite {
+        println!("{} Parsing barcode patterns...", style("[1/3]").bold().dim());
+    }
+    
+    let barcode1 = pattern1.as_ref().map(|pat| {
+        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode parser for pattern1")
+    });
+
+    let barcode2 = pattern2.as_ref().map(|pat| {
+        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode parser for pattern2")
+    });
+
     let started = Instant::now();
     let progress_bar = match quite {
         false => {
-            println!("{} Estimating reads count...", style("[1/3]").bold().dim());
+            println!("{} Estimating reads count...", style("[2/3]").bold().dim());
             Some(logger::create_progress_bar(&fq1, threads, max_memory).expect("Failed to create progress bar"))
         },
         true => None
     };
-
-    if !quite {
-        println!("{} Parsing barcode patterns...", style("[2/3]").bold().dim());
-    }
-
-    let barcode1 = pattern1.as_ref().map(|pat| {
-        BarcodeParser::new(pat, max_error).expect("Failed to create barcode parser for pattern1")
-    });
-
-    let barcode2 = pattern2.as_ref().map(|pat| {
-        BarcodeParser::new(pat, max_error).expect("Failed to create barcode parser for pattern2")
-    });
 
     let mut reader1 =
         io::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
@@ -209,41 +205,17 @@ fn process_pair_end_fastq(
                 .par_iter()
                 .zip(records2.par_iter())
                 .filter_map(|(record1, record2)| {
-                    let read1_captures = barcode1
-                        .as_ref()
-                        .map_or(Ok(None), |b| b.get_captures(record1.seq()).map(Some));
-                    let read2_captures = barcode2
-                        .as_ref()
-                        .map_or(Ok(None), |b| b.get_captures(record2.seq()).map(Some));
+                    let barcode1_parser = barcode::BarcodeParser::new(barcode1.clone(), skip_trimming, rc_barcodes);
+                    let barcode2_parser = barcode::BarcodeParser::new(barcode2.clone(), skip_trimming, rc_barcodes);
 
-                    let read1_seq_rc;
-                    let read1_captures = if read1_captures.is_err() && rc_barcodes {
-                        read1_seq_rc = barcode::get_reverse_complement(record1.seq());
-                        barcode1
-                            .as_ref()
-                            .map_or(Ok(None), |b| b.get_captures(&read1_seq_rc).map(Some))
-                    } else {
-                        read1_captures
-                    };
-
-                    let read2_seq_rc;
-                    let read2_captures = if read2_captures.is_err() && rc_barcodes {
-                        read2_seq_rc = barcode::get_reverse_complement(record2.seq());
-                        barcode2
-                            .as_ref()
-                            .map_or(Ok(None), |b| b.get_captures(&read2_seq_rc).map(Some))
-                    } else {
-                        read2_captures
-                    };
-
-                    let new_record1 =
-                        barcode::create_new_read(read1_captures, record1, skip_trimming);
-                    let new_record2 =
-                        barcode::create_new_read(read2_captures, record2, skip_trimming);
-
-                    match (new_record1, new_record2) {
+                    let new_records = (
+                        barcode1_parser.as_ref().and_then(|parser| parser.extract_barcodes(record1)),
+                        barcode2_parser.as_ref().and_then(|parser| parser.extract_barcodes(record2)),
+                    );
+                    
+                    match new_records {
                         (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
-                        (None, Some(new_record1)) => Some((record1.to_owned_record(), new_record1)),
+                        (None, Some(new_record2)) => Some((record1.to_owned_record(), new_record2)),
                         (Some(new_record1), None) => Some((new_record1, record2.to_owned_record())),
                         (None, None) => None,
                     }

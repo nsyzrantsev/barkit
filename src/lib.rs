@@ -74,7 +74,7 @@ pub enum Commands {
 }
 
 #[derive(Debug, clap::Args)]
-#[group(required = true, multiple = false)]
+#[group(required = true, multiple = true)]
 pub struct PatternsGroup {
     /// Barcode pattern of forward reads
     #[arg(short = 'p', long, requires = "fq1")]
