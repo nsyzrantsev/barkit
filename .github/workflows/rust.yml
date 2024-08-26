@@ -1,8 +1,6 @@
 name: Rust
 
 on:
-  push:
-    branches: [ "3-add-ci-cd" ]
   pull_request:
     branches: [ "3-add-ci-cd" ]
 
