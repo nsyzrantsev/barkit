@@ -92,13 +92,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case("^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 1)]
-    #[case("^(...)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 3)]
-    #[case("^(...)(?P<UMI>[ATGCN]{3})", "^AAA(?P<UMI>[ATGCN]{3})", 4)]
-    #[case("^((...))(?P<UMI>[ATGCN]{3})", "^(AAA)(?P<UMI>[ATGCN]{3})", 4)]
+    #[case("^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})", "^aaa(?P<UMI>[ATGCN]{3})", 1)]
+    #[case("^(...)(?P<UMI>[ATGCN]{3})", "^aaa(?P<UMI>[ATGCN]{3})", 3)]
+    #[case("^(...)(?P<UMI>[ATGCN]{3})", "^aaa(?P<UMI>[ATGCN]{3})", 4)]
+    #[case("^((...))(?P<UMI>[ATGCN]{3})", "^(aaa)(?P<UMI>[ATGCN]{3})", 4)]
     #[case(
-        "^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})(CC.|C.C|.CC)",
-        "^AAA(?P<UMI>[ATGCN]{3})CCC",
+        "^(AA.|A.A|.AA)(?P<UMI>[ATGCN]{3})CCC",
+        "^aaa(?P<UMI>[ATGCN]{3})CCC",
         1
     )]
     #[case("^(?P<UMI>[ATGCN]{3})", "^(?P<UMI>[ATGCN]{3})", 1)]
