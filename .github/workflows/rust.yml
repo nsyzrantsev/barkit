@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "3-add-ci-cd" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "3-add-ci-cd" ]
 
 env:
   CARGO_TERM_COLOR: always
