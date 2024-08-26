@@ -5,7 +5,7 @@ use indicatif::HumanDuration;
 use rayon::prelude::*;
 
 use crate::barcode::{self, BarcodeRegex};
-use crate::io::{self, CompressionType};
+use crate::fastq::{self, CompressionType};
 use crate::logger;
 
 #[allow(clippy::too_many_arguments)]
@@ -77,8 +77,8 @@ fn process_single_end_fastq(
 ) {
     
     let mut reader =
-        io::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = io::create_writer(&out_read, &output_compression, threads, force)
+        fastq::create_reader(&read, threads, max_memory).expect("Failed to create reader");
+    let writer = fastq::create_writer(&out_read, &output_compression, threads, force)
         .expect("Failed to create writer");
 
     if !quiet {
@@ -131,7 +131,7 @@ fn process_single_end_fastq(
                 .collect();
 
             let writer = writer.lock().unwrap();
-            io::save_single_end_reads_to_file(result_reads, writer);
+            fastq::save_single_end_reads_to_file(result_reads, writer);
 
             if let Some(ref pb) = progress_bar { pb.inc(records.len() as u64) }
         }
@@ -158,13 +158,13 @@ fn process_pair_end_fastq(
     force: bool
 ) {
     let mut reader1 =
-        io::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
+        fastq::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
     let mut reader2 =
-        io::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
+        fastq::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
 
-    let writer1 = io::create_writer(&out_fq1, &output_compression, threads, force)
+    let writer1 = fastq::create_writer(&out_fq1, &output_compression, threads, force)
         .expect("Failed to write output forward reads");
-    let writer2 = io::create_writer(&out_fq2, &output_compression, threads, force)
+    let writer2 = fastq::create_writer(&out_fq2, &output_compression, threads, force)
         .expect("Failed to write output reverse reads");
 
     if !quiet {
@@ -243,7 +243,7 @@ fn process_pair_end_fastq(
 
             let writer1 = writer1.lock().unwrap();
             let writer2 = writer2.lock().unwrap();
-            io::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
+            fastq::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
 
             if let Some(ref pb) = progress_bar { pb.inc(records1.len() as u64) }
         }

@@ -23,7 +23,7 @@ fn main() {
             force
         } => {
             let output_compression =
-                extract::io::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
+                extract::fastq::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
             extract::run::run(
                 fq1.to_string(),
                 fq2.clone(),
