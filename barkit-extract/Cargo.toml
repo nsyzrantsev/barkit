@@ -1,5 +1,5 @@
 [package]
-name = "extract"
+name = "barkit-extract"
 version = "0.1.0"
 edition = "2021"
 authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]

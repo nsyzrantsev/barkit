@@ -23,8 +23,8 @@ fn main() {
             force
         } => {
             let output_compression =
-                extract::fastq::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
-            extract::run::run(
+                barkit_extract::fastq::CompressionType::get_output_compression_type(gz, bgz, mgz, lz4);
+            barkit_extract::run::run(
                 fq1.to_string(),
                 fq2.clone(),
                 patterns.pattern1.clone(),
