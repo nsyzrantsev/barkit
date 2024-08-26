@@ -55,8 +55,8 @@ pub fn run(
             quiet,
             force
         ),
-        _ => println!(
-            "Something unexpected happend... Please, check provided arguments."
+        _ => eprintln!(
+            "Invalid arguments provided. Please ensure that you have provided the correct combination of input files and patterns."
         ),
     }
 }
@@ -88,7 +88,7 @@ fn process_single_end_fastq(
         );
     }
 
-    let barcode_re = BarcodeRegex::new(&pattern, max_error).expect("REASON");
+    let barcode_re = BarcodeRegex::new(&pattern, max_error).expect("Failed to create barcode regex with the provided pattern and max error.");
 
     let progress_bar = match quiet {
         false => {
@@ -175,11 +175,11 @@ fn process_pair_end_fastq(
     }
 
     let barcode1 = pattern1.as_ref().map(|pat| {
-        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode parser for pattern1")
+        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode regex for pattern1 with the provided pattern and max error")
     });
 
     let barcode2 = pattern2.as_ref().map(|pat| {
-        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode parser for pattern2")
+        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode regex for pattern2 with the provided pattern and max error")
     });
 
     let started = Instant::now();
