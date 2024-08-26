@@ -2,6 +2,13 @@
 name = "barkit"
 version = "0.1.0"
 edition = "2021"
+authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]
+description = "Tool to process barcodes in FASTQ"
+license = "GPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/nsyzrantsev/barkit"
+repository = "https://github.com/nsyzrantsev/barkit"
+keywords = ["bioinformatics", "sequencing", "barcodes"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
