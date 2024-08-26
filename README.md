@@ -22,23 +22,23 @@ All parsed barcode sequences are moved to the read header with base quality sepa
 @SEQ_ID UMI:ATGC:???? CB:ATGC:???? SB:ATGC:????
 ```
 
-* UMI: Unique Molecular Identifier (molecular barcode)
-* CB: Cell Barcode
-* SB: Sample Barcode
+* **UMI**: Unique Molecular Identifier (Molecular Barcode)
+* **CB**: Cell Barcode
+* **SB**: Sample Barcode
 
 
 ### Examples
 
-Parse the first twelve nucleotides as a UMI from each read:
+Parse the first twelve nucleotides as a UMI from each forward read:
 
 ```bash
 barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<UMI>[ATGCN]{12})" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
-Parse the first sixteen nucleotides as a single-cell barcode from each read before the `atgccat` sequence:
+Parse the first sixteen nucleotides as a cell barcode from each reverse read before the `atgccat` sequence:
 
 ```bash
-barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -p "^(?P<CB>[ATGCN]{16})atgccat" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
+barkit extract -1 <IN_FASTQ1> -2 <IN_FASTQ2> -P "^(?P<CB>[ATGCN]{16})atgccat" -o <OUT_FASTQ1> -O <OUT_FASTQ2>
 ```
 
 > [!NOTE]
