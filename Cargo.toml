@@ -10,7 +10,7 @@ members = ["barkit-extract"]
 
 [dependencies]
 clap = { version = "4.5.4", features = ["env", "derive"] }
-barkit-extract = { path = "barkit-extract" }
+barkit-extract = { version = "0.1.0", path = "barkit-extract" }
 
 [profile.dev]
 opt-level = 0
