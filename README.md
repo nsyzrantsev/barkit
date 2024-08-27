@@ -5,7 +5,7 @@
 
 BarKit (Barcodes Toolkit) is a toolkit designed for manipulating FASTQ barcodes.
 
-## Building from Source
+## Installation
 
 ```bash
 cargo install barkit
