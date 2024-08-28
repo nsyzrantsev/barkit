@@ -33,7 +33,7 @@ const TRANSLATION_TABLE: [u8; 256] = {
 pub enum BarcodeType {
     Umi,
     Sample,
-    Cell
+    Cell,
 }
 
 impl fmt::Display for BarcodeType {
@@ -84,7 +84,12 @@ impl BarcodeRegex {
 
     fn parse_capture_groups(regex: &Regex) -> Result<Vec<BarcodeType>, Error> {
         let mut capture_groups = Vec::<BarcodeType>::new();
-        for capture_group in regex.capture_names().collect::<Vec<_>>().into_iter().flatten() {
+        for capture_group in regex
+            .capture_names()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .flatten()
+        {
             capture_groups.push(BarcodeType::get_barcode_type(capture_group)?)
         }
         if capture_groups.is_empty() {

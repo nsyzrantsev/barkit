@@ -23,7 +23,7 @@ pub fn run(
     max_error: usize,
     output_compression: CompressionType,
     quiet: bool,
-    force: bool
+    force: bool,
 ) {
     match (fq2, out_fq2, pattern1, pattern2) {
         (Some(fq2), Some(out_fq2), pattern1, pattern2) => process_pair_end_fastq(
@@ -73,9 +73,8 @@ fn process_single_end_fastq(
     max_error: usize,
     output_compression: CompressionType,
     quiet: bool,
-    force: bool
+    force: bool,
 ) {
-    
     let mut reader =
         fastq::create_reader(&read, threads, max_memory).expect("Failed to create reader");
     let writer = fastq::create_writer(&out_read, &output_compression, threads, force)
@@ -88,7 +87,8 @@ fn process_single_end_fastq(
         );
     }
 
-    let barcode_re = BarcodeRegex::new(&pattern, max_error).expect("Failed to create barcode regex with the provided pattern and max error.");
+    let barcode_re = BarcodeRegex::new(&pattern, max_error)
+        .expect("Failed to create barcode regex with the provided pattern and max error.");
 
     let progress_bar = match quiet {
         false => {
@@ -100,7 +100,6 @@ fn process_single_end_fastq(
         }
         true => None,
     };
-
 
     if !quiet {
         println!(
@@ -133,11 +132,15 @@ fn process_single_end_fastq(
             let writer = writer.lock().unwrap();
             fastq::save_single_end_reads_to_file(result_reads, writer);
 
-            if let Some(ref pb) = progress_bar { pb.inc(records.len() as u64) }
+            if let Some(ref pb) = progress_bar {
+                pb.inc(records.len() as u64)
+            }
         }
     }
 
-    if let Some(pb) = progress_bar { pb.finish_with_message("all reads successfully processed") }
+    if let Some(pb) = progress_bar {
+        pb.finish_with_message("all reads successfully processed")
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -155,12 +158,12 @@ fn process_pair_end_fastq(
     max_error: usize,
     output_compression: CompressionType,
     quiet: bool,
-    force: bool
+    force: bool,
 ) {
-    let mut reader1 =
-        fastq::create_reader(&fq1, threads, max_memory).expect("Failed to read input forward reads");
-    let mut reader2 =
-        fastq::create_reader(&fq2, threads, max_memory).expect("Failed to read input reverse reads");
+    let mut reader1 = fastq::create_reader(&fq1, threads, max_memory)
+        .expect("Failed to read input forward reads");
+    let mut reader2 = fastq::create_reader(&fq2, threads, max_memory)
+        .expect("Failed to read input reverse reads");
 
     let writer1 = fastq::create_writer(&out_fq1, &output_compression, threads, force)
         .expect("Failed to write output forward reads");
@@ -175,11 +178,15 @@ fn process_pair_end_fastq(
     }
 
     let barcode1 = pattern1.as_ref().map(|pat| {
-        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode regex for pattern1 with the provided pattern and max error")
+        BarcodeRegex::new(pat, max_error).expect(
+            "Failed to create barcode regex for pattern1 with the provided pattern and max error",
+        )
     });
 
     let barcode2 = pattern2.as_ref().map(|pat| {
-        BarcodeRegex::new(pat, max_error).expect("Failed to create barcode regex for pattern2 with the provided pattern and max error")
+        BarcodeRegex::new(pat, max_error).expect(
+            "Failed to create barcode regex for pattern2 with the provided pattern and max error",
+        )
     });
 
     let started = Instant::now();
@@ -245,12 +252,16 @@ fn process_pair_end_fastq(
             let writer2 = writer2.lock().unwrap();
             fastq::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
 
-            if let Some(ref pb) = progress_bar { pb.inc(records1.len() as u64) }
+            if let Some(ref pb) = progress_bar {
+                pb.inc(records1.len() as u64)
+            }
         }
     }
-    if progress_bar.is_some() { println!(
-        "{} Done in {}",
-        logger::SPARKLE,
-        HumanDuration(started.elapsed())
-    )}
+    if progress_bar.is_some() {
+        println!(
+            "{} Done in {}",
+            logger::SPARKLE,
+            HumanDuration(started.elapsed())
+        )
+    }
 }
