@@ -9,7 +9,7 @@ readme = "../README.md"
 homepage = "https://github.com/nsyzrantsev/barkit"
 repository = "https://github.com/nsyzrantsev/barkit"
 keywords = ["bioinformatics", "sequencing", "barcodes"]
-rust-version = "1.80.1"
+rust-version = "1.80.0"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive", "env"] }
