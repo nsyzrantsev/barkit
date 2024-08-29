@@ -13,7 +13,7 @@ jobs:
       release_body: ${{ steps.barkit.outputs.content }}
     steps:
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: git-cliff
       - name: Checkout
