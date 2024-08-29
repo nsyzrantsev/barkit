@@ -1,6 +1,6 @@
 [package]
 name = "barkit"
-version = "1.0.0-rc.1" # managed by release.sh
+version = "1.0.0-rc.2" # managed by release.sh
 edition = "2021"
 authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]
 description = "Tool to process barcodes in FASTQ"
@@ -17,7 +17,7 @@ members = ["barkit-extract"]
 
 [dependencies]
 clap = { version = "4.5.4", features = ["env", "derive"] }
-barkit-extract = { version = "1.0.0-rc.1", path = "barkit-extract" }
+barkit-extract = { version = "1.0.0-rc.2", path = "barkit-extract" }
 
 [profile.dev]
 opt-level = 0
