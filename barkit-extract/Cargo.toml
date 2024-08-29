@@ -1,6 +1,6 @@
 [package]
 name = "barkit-extract"
-version = "0.1.0" # managed by release.sh
+version = "1.0.0-rc.1" # managed by release.sh
 edition = "2021"
 authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]
 description = "Tool to extract barcodes"
