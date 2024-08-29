@@ -37,7 +37,7 @@ export GIT_CLIFF_TEMPLATE="\
 changelog=$(git cliff --config examples/detailed.toml --unreleased --strip all)
 
 # create a signed tag
-git tag -s -a "$1" -m "Release $1" -m "$changelog"
+git tag -a "$1" -m "Release $1" -m "$changelog"
 git tag -v "$1"
 echo "Done!"
 echo "Now push the commit (git push) and the tag (git push --tags)."
