@@ -40,7 +40,7 @@ changelog=$(git cliff --config examples/detailed.toml --unreleased --strip all)
 # create a signed tag
 git -c user.name="barkit" \
 	-c user.email="barkit-contributors@protonmail.com" \
-	-c user.signingkey="22E807E23B241F577D00707CCC647E5AAD788B36" \
+	-c user.signingkey="28213A28D4F254B1DD50CBB251D0197272632607" \
 	tag -s -a "$1" -m "Release $1" -m "$changelog"
 git tag -v "$1"
 echo "Done!"
