@@ -10,11 +10,14 @@ jobs:
     name: Generate changelog
     runs-on: ubuntu-22.04
     outputs:
-      release_body: ${{ steps.barkit.outputs.content }}
+      release_body: ${{ steps.git-cliff.outputs.content }}
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - name: Checkout
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -22,9 +25,11 @@ jobs:
         uses: actions-rs/cargo@v1
         id: git-cliff
         with:
-          command: git-cliff
-          config: cliff.toml
-          args: -vv --latest --no-exec --github-repo ${{ github.repository }}
+          command: install
+          args: git-cliff
+      - name: Run git-cliff to generate changelog
+        run: git-cliff -vv --latest --no-exec --github-repo ${{ github.repository }} --config cliff.toml
+        id: barkit
 
   publish-binaries:
     name: Publish binaries
