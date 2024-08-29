@@ -20,6 +20,7 @@ echo "Preparing $1..."
 msg="# managed by release.sh"
 sed -E -i "s/^version = .* $msg$/version = \"${1#v}\" $msg/" barkit*/Cargo.toml
 sed -E -i "s/^version = .* $msg$/version = \"${1#v}\" $msg/" Cargo.toml
+sed -E -i "s/(barkit-extract = \{ version = \")[^\"]+/\1${1#v}/" Cargo.toml
 
 # update the changelog
 git cliff --config cliff.toml --tag "$1" >CHANGELOG.md
