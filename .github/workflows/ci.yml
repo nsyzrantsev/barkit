@@ -38,7 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check typos
-        uses: crate-ci/typos@master
+        uses: crate-ci/typos@v1
 
   test:
     name: Test suite
@@ -123,6 +123,6 @@ jobs:
         shell: bash
         run: |
           for package in barkit-extract; do
-            printf "Checking MSRV for $package..."
+            printf "Checking MSRV for %s..." "$package"
             cargo msrv --output-format json --path "$package" verify | tail -n 1 | jq --exit-status '.success'
           done
