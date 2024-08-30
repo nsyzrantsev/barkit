@@ -137,7 +137,7 @@ pub fn create_writer(
     file: &str,
     compression: &CompressionType,
     threads_num: usize,
-    force: bool
+    force: bool,
 ) -> Result<WriterType, error::Error> {
     let path = Path::new(file);
 
@@ -146,7 +146,8 @@ pub fn create_writer(
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
             format!("File {} already exists and force is set to false", file),
-        ).into());
+        )
+        .into());
     }
 
     let file = if force {

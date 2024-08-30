@@ -1,0 +1,28 @@
+[package]
+name = "barkit-extract"
+version = "0.1.0" # managed by release.sh
+edition = "2021"
+authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]
+description = "Tool to extract barcodes"
+license = "GPL-3.0"
+readme = "../README.md"
+homepage = "https://github.com/nsyzrantsev/barkit"
+repository = "https://github.com/nsyzrantsev/barkit"
+keywords = ["bioinformatics", "sequencing", "barcodes"]
+rust-version = "1.80.0"
+
+[dependencies]
+clap = { version = "4.5.4", features = ["derive", "env"] }
+flate2 = "1.0.30"
+regex = "1.10.4"
+seq_io = "0.3.2"
+thiserror = "1.0.61"
+rayon = "1.10.0"
+fancy-regex = "0.13.0"
+lz4 = "1.26.0"
+gzp = "0.11.3"
+indicatif = "0.17.8"
+console = "0.15.8"
+
+[dev-dependencies]
+rstest = "0.22.0"

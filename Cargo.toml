@@ -1,16 +1,23 @@
 [package]
 name = "barkit"
-version = "0.1.0"
+version = "0.1.0" # managed by release.sh
 edition = "2021"
+authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]
+description = "Tool to process barcodes in FASTQ"
+license = "GPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/nsyzrantsev/barkit"
+repository = "https://github.com/nsyzrantsev/barkit"
+keywords = ["bioinformatics", "sequencing", "barcodes"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["extract"]
+members = ["barkit-extract"]
 
 [dependencies]
 clap = { version = "4.5.4", features = ["env", "derive"] }
-extract = { path = "extract" }
+barkit-extract = { version = "0.1.0", path = "barkit-extract" }
 
 [profile.dev]
 opt-level = 0

@@ -47,7 +47,7 @@ pub enum Commands {
         #[arg(short = 's', long, action=ArgAction::SetTrue)]
         skip_trimming: bool,
 
-        /// Max error (mistmatch) between provided pattern and read sequence
+        /// Max error (mismatch) between provided pattern and read sequence
         #[arg(short = 'e', long, default_value = "1")]
         max_error: usize,
 

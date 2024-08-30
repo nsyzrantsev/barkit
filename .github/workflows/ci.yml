@@ -1,0 +1,128 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 0 * * 0"
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --verbose
+      - name: Check without default features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --verbose
+
+  typos:
+    name: Typos
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check typos
+        uses: crate-ci/typos@master
+
+  test:
+    name: Test suite
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Checkout
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Setup cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
+      - name: Run tests
+        run: |
+          cargo test --all --no-default-features \
+            -- --skip "repo::test::git_upstream_remote"
+      - name: Run tests
+        run: |
+          cargo tarpaulin --out xml --verbose --all-features \
+            -- --skip "repo::test::git_upstream_remote"
+      - name: Upload reports to codecov
+        uses: codecov/codecov-action@v4
+        with:
+          name: code-coverage-report
+          file: cobertura.xml
+          flags: unit-tests
+          fail_ci_if_error: true
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  clippy:
+    name: Lints
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check the lints
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --tests --verbose -- -D warnings
+
+  rustfmt:
+    name: Formatting
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check the formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check --verbose
+
+  msrv:
+    name: Check Rust version
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install cargo-binstall
+        uses: taiki-e/install-action@cargo-binstall
+      - name: Install cargo-msrv
+        run: cargo binstall -y cargo-msrv
+      - name: Run cargo-msrv
+        shell: bash
+        run: |
+          for package in barkit-extract; do
+            printf "Checking MSRV for %s..." "$package"
+            cargo msrv --output-format json --path "$package" verify | tail -n 1 | jq --exit-status '.success'
+          done
