@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install git-cliff
-        uses: actions-rs/cargo@v2
+        uses: actions-rs/cargo@v1
         id: git-cliff
         with:
           command: install
@@ -145,14 +145,14 @@ jobs:
           override: true
       - name: Build (linux/macos)
         if: matrix.build.OS != 'windows-2022'
-        uses: actions-rs/cargo@v2
+        uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
           args: --release --locked --target ${{ matrix.build.TARGET }}
       - name: Build (windows)
         if: matrix.build.OS == 'windows-2022'
-        uses: actions-rs/cargo@v2
+        uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --locked --target ${{ matrix.build.TARGET }} # --no-default-features
