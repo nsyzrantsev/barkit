@@ -226,9 +226,9 @@ jobs:
           targets: x86_64-unknown-linux-gnu
       - name: Publish the barkit-extract binary
         run: |
-          cargo publish --allow-dirty --manifest-path barkit-extract/Cargo.toml \
+          cargo publish --manifest-path barkit-extract/Cargo.toml \
             --locked --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish the barkit binary
         run: |
-          cargo publish --allow-dirty --manifest-path Cargo.toml \
+          cargo publish --manifest-path Cargo.toml \
             --locked --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
