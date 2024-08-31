@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use crate::parse;
 use crate::pattern::BarcodeRegex;
 use crate::fastq::{self, CompressionType};
-use crate::logger;
+use crate::logger::{self, CustomProgressBar};
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -64,9 +64,9 @@ pub fn run(
 
 #[allow(clippy::too_many_arguments)]
 fn process_single_end_fastq(
-    read: String,
+    fq: String,
     pattern: String,
-    out_read: String,
+    out_fq: String,
     max_memory: Option<usize>,
     threads: usize,
     rc_barcodes: bool,
@@ -77,8 +77,8 @@ fn process_single_end_fastq(
     force: bool,
 ) {
     let mut reader =
-        fastq::create_reader(&read, threads, max_memory).expect("Failed to create reader");
-    let writer = fastq::create_writer(&out_read, &output_compression, threads, force)
+        fastq::create_reader(&fq, threads, max_memory).expect("Failed to create reader");
+    let writer = fastq::create_writer(&out_fq, &output_compression, threads, force)
         .expect("Failed to create writer");
 
     if !quiet {
@@ -91,16 +91,8 @@ fn process_single_end_fastq(
     let barcode_re = BarcodeRegex::new(&pattern, max_error)
         .expect("Failed to create barcode regex with the provided pattern and max error.");
 
-    let progress_bar = match quiet {
-        false => {
-            println!("{} Estimating reads count...", style("[2/3]").bold().dim());
-            Some(
-                logger::create_progress_bar(&read, threads, max_memory)
-                    .expect("Failed to create progress bar"),
-            )
-        }
-        true => None,
-    };
+    let lines_number = fastq::get_reads_count(&fq, threads, max_memory);
+    let progress_bar = CustomProgressBar::new(lines_number, quiet);
 
     if !quiet {
         println!(
@@ -191,16 +183,8 @@ fn process_pair_end_fastq(
     });
 
     let started = Instant::now();
-    let progress_bar = match quiet {
-        false => {
-            println!("{} Estimating reads count...", style("[2/3]").bold().dim());
-            Some(
-                logger::create_progress_bar(&fq1, threads, max_memory)
-                    .expect("Failed to create progress bar"),
-            )
-        }
-        true => None,
-    };
+    let lines_number = fastq::get_reads_count(&fq1, threads, max_memory);
+    let progress_bar = CustomProgressBar::new(lines_number, quiet);
 
     if !quiet {
         println!(
