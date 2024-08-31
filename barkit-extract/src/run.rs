@@ -1,13 +1,9 @@
-use std::time::Instant;
-
-use console::style;
-use indicatif::HumanDuration;
 use rayon::prelude::*;
 
 use crate::parse;
 use crate::pattern::BarcodeRegex;
 use crate::fastq::{self, CompressionType};
-use crate::logger::{self, CustomProgressBar};
+use crate::logger;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -76,30 +72,23 @@ fn process_single_end_fastq(
     quiet: bool,
     force: bool,
 ) {
+    let mut logger = logger::Logger::new(3, quiet);
+    logger.message("Estimating reads count...");
+    
+    let lines_number = fastq::get_reads_count(&fq, threads, max_memory);
+    logger.set_progress_bar(lines_number);
+
     let mut reader =
         fastq::create_reader(&fq, threads, max_memory).expect("Failed to create reader");
     let writer = fastq::create_writer(&out_fq, &output_compression, threads, force)
         .expect("Failed to create writer");
 
-    if !quiet {
-        println!(
-            "{} Parsing barcode patterns...",
-            style("[1/3]").bold().dim()
-        );
-    }
+    logger.message("Parsing barcode patterns...");
 
     let barcode_re = BarcodeRegex::new(&pattern, max_error)
         .expect("Failed to create barcode regex with the provided pattern and max error.");
 
-    let lines_number = fastq::get_reads_count(&fq, threads, max_memory);
-    let progress_bar = CustomProgressBar::new(lines_number, quiet);
-
-    if !quiet {
-        println!(
-            "{} Extracting barcodes from reads...",
-            style("[3/3]").bold().dim()
-        );
-    }
+    logger.message("Extracting barcodes from reads...");
 
     loop {
         let mut record_set = seq_io::fastq::RecordSet::default();
@@ -125,15 +114,11 @@ fn process_single_end_fastq(
             let writer = writer.lock().unwrap();
             fastq::save_single_end_reads_to_file(result_reads, writer);
 
-            if let Some(ref pb) = progress_bar {
-                pb.inc(records.len() as u64)
-            }
+            logger.increment_progress(records.len());
         }
     }
 
-    if let Some(pb) = progress_bar {
-        pb.finish_with_message("all reads successfully processed")
-    }
+    logger.final_message();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -153,6 +138,12 @@ fn process_pair_end_fastq(
     quiet: bool,
     force: bool,
 ) {
+    let mut logger = logger::Logger::new(3, quiet);
+    logger.message("Estimating reads count...");
+    
+    let lines_number = fastq::get_reads_count(&fq1, threads, max_memory);
+    logger.set_progress_bar(lines_number);
+
     let mut reader1 = fastq::create_reader(&fq1, threads, max_memory)
         .expect("Failed to read input forward reads");
     let mut reader2 = fastq::create_reader(&fq2, threads, max_memory)
@@ -163,12 +154,7 @@ fn process_pair_end_fastq(
     let writer2 = fastq::create_writer(&out_fq2, &output_compression, threads, force)
         .expect("Failed to write output reverse reads");
 
-    if !quiet {
-        println!(
-            "{} Parsing barcode patterns...",
-            style("[1/3]").bold().dim()
-        );
-    }
+    logger.message("Parsing barcode patterns...");
 
     let barcode1 = pattern1.as_ref().map(|pat| {
         BarcodeRegex::new(pat, max_error).expect(
@@ -182,16 +168,7 @@ fn process_pair_end_fastq(
         )
     });
 
-    let started = Instant::now();
-    let lines_number = fastq::get_reads_count(&fq1, threads, max_memory);
-    let progress_bar = CustomProgressBar::new(lines_number, quiet);
-
-    if !quiet {
-        println!(
-            "{} Extracting barcodes from reads...",
-            style("[3/3]").bold().dim()
-        );
-    }
+    logger.message("Extracting barcodes from reads...");
 
     loop {
         let mut record_set1 = seq_io::fastq::RecordSet::default();
@@ -237,16 +214,8 @@ fn process_pair_end_fastq(
             let writer2 = writer2.lock().unwrap();
             fastq::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
 
-            if let Some(ref pb) = progress_bar {
-                pb.inc(records1.len() as u64)
-            }
+            logger.increment_progress(records1.len());
         }
     }
-    if progress_bar.is_some() {
-        println!(
-            "{} Done in {}",
-            logger::SPARKLE,
-            HumanDuration(started.elapsed())
-        )
-    }
+    logger.final_message();
 }

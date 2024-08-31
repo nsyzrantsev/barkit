@@ -15,7 +15,7 @@ fn main() {
             force,
         } => {
             let output_compression =
-                barkit_extract::fastq::CompressionType::get_output_compression_type(
+                barkit_extract::fastq::CompressionType::select(
                     &compression.gz, &compression.bgz, &compression.mgz, &compression.lz4,
                 );
             barkit_extract::run::run(

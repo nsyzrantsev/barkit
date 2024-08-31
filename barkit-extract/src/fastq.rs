@@ -44,7 +44,7 @@ impl CompressionType {
         }
     }
 
-    pub fn get_output_compression_type(gz: &bool, bgz: &bool, mgz: &bool, lz4: &bool) -> Self {
+    pub fn select(gz: &bool, bgz: &bool, mgz: &bool, lz4: &bool) -> Self {
         match (gz, bgz, mgz, lz4) {
             (true, false, false, false) => Self::Gzip,
             (false, true, false, false) => Self::Mgzip,
@@ -54,7 +54,7 @@ impl CompressionType {
         }
     }
 
-    fn get_input_compression_type(path: &Path) -> CompressionType {
+    fn detect(path: &Path) -> CompressionType {
         let mut buffer = [0u8; 16];
 
         File::open(path)
@@ -95,7 +95,7 @@ pub fn create_reader(
 
     let buffer_size_in_bytes = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
 
-    let decoder: Box<dyn Read> = match CompressionType::get_input_compression_type(path) {
+    let decoder: Box<dyn Read> = match CompressionType::detect(path) {
         CompressionType::Gzip | CompressionType::Mgzip => Box::new(MultiGzDecoder::new(file)),
         CompressionType::Lz4 => Box::new(Decoder::new(file)?),
         CompressionType::Bgzf => Box::new(
