@@ -5,20 +5,31 @@ use fancy_regex::Regex;
 const FUZZY_CHARACTER: &str = ".";
 const ADAPTER_PATTERN_REGEX: &str = r"(?<!\[)\b[atgcryswkmbdhvn]+\b(?!\])";
 
-pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> Vec<String> {
+/// Generates sequences with errors that may occur during amplification.
+///
+/// # Example
+///
+/// ```
+/// use barkit_extract::pattern::generate_sequences_with_pcr_errors;
+/// let sequence = "ATGC";
+/// let errors_number = 1;
+/// let sequences_with_errors = generate_sequences_with_pcr_errors(sequence, &errors_number);
+/// assert_eq!(vec!["ATG.", "AT.C", "A.GC", ".TGC"], sequences_with_errors);
+/// ```
+pub fn generate_sequences_with_pcr_errors(sequence: &str, errors_num: &usize) -> Vec<String> {
     if *errors_num == 0 {
-        return vec![string.to_string().to_ascii_uppercase()];
+        return vec![sequence.to_string().to_ascii_uppercase()];
     }
 
-    if string.is_empty() {
+    if sequence.is_empty() {
         return Vec::new();
     }
 
-    if *errors_num >= string.len() {
-        return vec![FUZZY_CHARACTER.repeat(string.len())];
+    if *errors_num >= sequence.len() {
+        return vec![FUZZY_CHARACTER.repeat(sequence.len())];
     }
 
-    let num_chars = string.chars().count();
+    let num_chars = sequence.chars().count();
     assert!(num_chars <= usize::BITS as usize * 8, "too many characters");
 
     let max_permutation_mask = usize::MAX
@@ -27,7 +38,7 @@ pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> V
 
     let mut cases = Vec::new();
 
-    let upper: Vec<char> = string.chars().map(|c| c.to_ascii_uppercase()).collect();
+    let upper: Vec<char> = sequence.chars().map(|c| c.to_ascii_uppercase()).collect();
 
     for permutation_mask in 0..=max_permutation_mask {
         if permutation_mask.count_ones() as usize != num_chars - errors_num {
@@ -47,6 +58,17 @@ pub fn generate_sequences_with_pcr_errors(string: &str, errors_num: &usize) -> V
     cases
 }
 
+/// Returns regex pattern with PCR errors.
+///
+/// # Example
+///
+/// ```
+/// use barkit_extract::pattern::get_with_errors;
+/// let sequence = "^atgc(?<UMI>[ATGCN]{12})";
+/// let max_error = 1;
+/// let pattern_with_pcr_errors = get_with_errors(sequence, &max_error);
+/// assert_eq!("^(ATG.|AT.C|A.GC|.TGC)(?<UMI>[ATGCN]{12})", pattern_with_pcr_errors);
+/// ```
 pub fn get_with_errors(pattern: &str, max_error: &usize) -> String {
     let regex_pattern = Regex::new(ADAPTER_PATTERN_REGEX).unwrap();
 
