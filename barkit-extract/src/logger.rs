@@ -24,7 +24,7 @@ pub struct Logger {
 }
 
 impl Logger {
-    /// Creates logger instance with default values.
+    /// Creates `Logger` instance with default values.
     ///
     /// # Example
     ///
