@@ -16,6 +16,8 @@ pub enum Error {
     FileRead(#[from] std::io::Error),
     #[error("No match")]
     PatternNotMatched,
+    #[error("Fancy regex error: {0}")]
+    FancyRegex(#[from] fancy_regex::Error),
 }
 
 impl Clone for Error {
@@ -32,6 +34,7 @@ impl Clone for Error {
             }
             Error::FileRead(err) => Error::FileRead(err.kind().into()),
             Error::PatternNotMatched => Error::PatternNotMatched,
+            Error::FancyRegex(err) => Error::FancyRegex(err.clone()),
         }
     }
 }

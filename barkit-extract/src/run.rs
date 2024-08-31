@@ -4,7 +4,8 @@ use console::style;
 use indicatif::HumanDuration;
 use rayon::prelude::*;
 
-use crate::barcode::{self, BarcodeRegex};
+use crate::parse;
+use crate::pattern::BarcodeRegex;
 use crate::fastq::{self, CompressionType};
 use crate::logger;
 
@@ -120,7 +121,7 @@ fn process_single_end_fastq(
             let result_reads: Vec<_> = records
                 .par_iter()
                 .filter_map(|record| {
-                    let barcodes_parser = barcode::BarcodeParser::new(
+                    let barcodes_parser = parse::BarcodeParser::new(
                         Some(barcode_re.clone()),
                         skip_trimming,
                         rc_barcodes,
@@ -226,9 +227,9 @@ fn process_pair_end_fastq(
                 .zip(records2.par_iter())
                 .filter_map(|(record1, record2)| {
                     let barcode1_parser =
-                        barcode::BarcodeParser::new(barcode1.clone(), skip_trimming, rc_barcodes);
+                        parse::BarcodeParser::new(barcode1.clone(), skip_trimming, rc_barcodes);
                     let barcode2_parser =
-                        barcode::BarcodeParser::new(barcode2.clone(), skip_trimming, rc_barcodes);
+                        parse::BarcodeParser::new(barcode2.clone(), skip_trimming, rc_barcodes);
 
                     let new_records = (
                         barcode1_parser

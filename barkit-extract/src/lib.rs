@@ -1,4 +1,4 @@
-pub mod barcode;
+pub mod parse;
 pub mod error;
 pub mod fastq;
 pub mod logger;
