@@ -54,7 +54,8 @@ impl BarcodePattern {
         assert!(num_chars <= usize::BITS as usize * 8, "too many characters");
 
         let max_permutation_mask = usize::MAX
-            .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32).ok_or(Error::PermutationMaskSize)?;
+            .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32)
+            .ok_or(Error::PermutationMaskSize)?;
 
         let mut cases = Vec::new();
 
@@ -252,7 +253,10 @@ mod tests {
         #[case] max_error: usize,
     ) {
         let barcode_pattern = pattern::BarcodePattern::new("", &max_error).unwrap();
-        assert_eq!(expected, barcode_pattern.get_sequence_with_errors(text).unwrap());
+        assert_eq!(
+            expected,
+            barcode_pattern.get_sequence_with_errors(text).unwrap()
+        );
     }
 
     #[rstest]

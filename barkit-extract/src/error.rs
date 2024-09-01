@@ -19,7 +19,7 @@ pub enum Error {
     #[error("Fancy regex error: {0}")]
     FancyRegex(#[from] fancy_regex::Error),
     #[error("Failed to choose permutation mask")]
-    PermutationMaskSize
+    PermutationMaskSize,
 }
 
 impl Clone for Error {
