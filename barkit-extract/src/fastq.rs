@@ -132,7 +132,7 @@ impl FastqReader {
         })
     }
 
-    /// Caclulates optimal buffer size based on FASTQ file size and max memory consumption
+    /// Calculates optimal buffer size based on FASTQ file size and max memory consumption
     fn calculate_buffer_size(
         fastq_file: &File,
         max_memory: Option<usize>,
