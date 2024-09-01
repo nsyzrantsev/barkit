@@ -128,7 +128,7 @@ impl FastqReader {
             reader: Reader::new(Box::new(BufReader::with_capacity(
                 buffer_size_in_bytes,
                 decoder,
-            )))
+            ))),
         })
     }
 
@@ -160,14 +160,16 @@ impl FastqReader {
         Self::new(file, threads_num, buffer_size_in_megabytes)
             .unwrap_or_else(|_| panic!("couldn't open file {}", file))
             .reader
-                .into_records()
-                .count()
+            .into_records()
+            .count()
     }
 
     pub fn read_record_set(&mut self) -> Option<RecordSet> {
         let mut record_set = RecordSet::default();
 
-        self.reader.read_record_set(&mut record_set).map(|_| record_set)
+        self.reader
+            .read_record_set(&mut record_set)
+            .map(|_| record_set)
     }
 }
 
@@ -181,27 +183,26 @@ impl FastqsReader {
         fq1: &str,
         fq2: &str,
         threads: usize,
-        max_memory: Option<usize>
+        max_memory: Option<usize>,
     ) -> Result<Self, error::Error> {
-        Ok(
-            Self {
-                reader1: FastqReader::new(fq1, threads, max_memory)?,
-                reader2: FastqReader::new(fq2, threads, max_memory)?,
-            }
-        )
+        Ok(Self {
+            reader1: FastqReader::new(fq1, threads, max_memory)?,
+            reader2: FastqReader::new(fq2, threads, max_memory)?,
+        })
     }
 
     pub fn read_record_sets(&mut self) -> Result<(Option<RecordSet>, Option<RecordSet>), Error> {
-        Ok(
-            (self.reader1.read_record_set(), self.reader2.read_record_set()),
-        )
+        Ok((
+            self.reader1.read_record_set(),
+            self.reader2.read_record_set(),
+        ))
     }
 }
 
 type WriterType = Rc<Mutex<BufWriter<Box<dyn std::io::Write>>>>;
 
 pub struct FastqWriter {
-    writer: WriterType
+    writer: WriterType,
 }
 
 impl FastqWriter {
@@ -217,7 +218,10 @@ impl FastqWriter {
         if path.exists() && !force {
             return Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
-                format!("File {} already exists. Please, provide --force flag to overwrite it.", fq),
+                format!(
+                    "File {} already exists. Please, provide --force flag to overwrite it.",
+                    fq
+                ),
             )
             .into());
         }
@@ -246,11 +250,12 @@ impl FastqWriter {
             _ => Box::new(file),
         };
 
-        Ok(
-            Self {
-                writer: Rc::new(Mutex::new(BufWriter::with_capacity(WRITE_BUFFER_SIZE, writer)))
-            }
-        )
+        Ok(Self {
+            writer: Rc::new(Mutex::new(BufWriter::with_capacity(
+                WRITE_BUFFER_SIZE,
+                writer,
+            ))),
+        })
     }
 
     fn write(&mut self, read: &OwnedRecord) -> Result<(), io::Error> {
@@ -283,11 +288,14 @@ impl FastqsWriter {
     ) -> Result<Self, Error> {
         Ok(Self {
             writer1: FastqWriter::new(fq1, compression, threads_num, force)?,
-            writer2: FastqWriter::new(fq2, compression, threads_num, force)?
+            writer2: FastqWriter::new(fq2, compression, threads_num, force)?,
         })
     }
 
-    pub fn write_all(&mut self, pe_reads: Vec<(OwnedRecord, OwnedRecord)>) -> Result<(), io::Error> {
+    pub fn write_all(
+        &mut self,
+        pe_reads: Vec<(OwnedRecord, OwnedRecord)>,
+    ) -> Result<(), io::Error> {
         for (read1_record, read2_record) in pe_reads {
             self.writer1.write(&read1_record)?;
             self.writer2.write(&read2_record)?;
