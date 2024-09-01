@@ -34,28 +34,27 @@ impl BarcodePattern {
     ///
     /// let barcode_pattern = BarcodePattern::new("^atgc(?<UMI>[ATGCN]{12})", &1).unwrap();
     ///
-    /// let sequences_with_errors = barcode_pattern.get_sequence_with_errors("ATGC");
+    /// let sequences_with_errors = barcode_pattern.get_sequence_with_errors("ATGC").unwrap();
     /// assert_eq!(vec!["ATG.", "AT.C", "A.GC", ".TGC"], sequences_with_errors);
     /// ```
-    pub fn get_sequence_with_errors(&self, sequence: &str) -> Vec<String> {
+    pub fn get_sequence_with_errors(&self, sequence: &str) -> Result<Vec<String>, Error> {
         if self.max_error == 0 {
-            return vec![sequence.to_string().to_ascii_uppercase()];
+            return Ok(vec![sequence.to_string().to_ascii_uppercase()]);
         }
 
         if sequence.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         if self.max_error >= sequence.len() {
-            return vec![FUZZY_CHARACTER.repeat(sequence.len())];
+            return Ok(vec![FUZZY_CHARACTER.repeat(sequence.len())]);
         }
 
         let num_chars = sequence.chars().count();
         assert!(num_chars <= usize::BITS as usize * 8, "too many characters");
 
         let max_permutation_mask = usize::MAX
-            .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32)
-            .unwrap();
+            .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32).ok_or(Error::PermutationMaskSize)?;
 
         let mut cases = Vec::new();
 
@@ -75,7 +74,7 @@ impl BarcodePattern {
             }
             cases.push(s);
         }
-        cases
+        Ok(cases)
     }
 
     /// Returns regex pattern with PCR errors.
@@ -95,11 +94,11 @@ impl BarcodePattern {
         let mut last_end = 0;
 
         for mat in self.adapter_pattern.find_iter(&self.barcode_pattern) {
-            let mat = mat.unwrap();
+            let mat = mat?;
             result.push_str(&self.barcode_pattern[last_end..mat.start()]);
 
             let fuzzy_patterns = self.get_sequence_with_errors(mat.as_str());
-            result.push_str(&format!("({})", fuzzy_patterns.join("|")));
+            result.push_str(&format!("({})", fuzzy_patterns?.join("|")));
 
             last_end = mat.end();
         }
@@ -253,7 +252,7 @@ mod tests {
         #[case] max_error: usize,
     ) {
         let barcode_pattern = pattern::BarcodePattern::new("", &max_error).unwrap();
-        assert_eq!(expected, barcode_pattern.get_sequence_with_errors(text));
+        assert_eq!(expected, barcode_pattern.get_sequence_with_errors(text).unwrap());
     }
 
     #[rstest]
