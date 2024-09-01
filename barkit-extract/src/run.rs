@@ -75,12 +75,13 @@ fn process_single_end_fastq(
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
 
-    let lines_number = fastq::get_reads_count(&fq, threads, max_memory);
+    let lines_number = fastq::count_reads(&fq, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
     let mut reader =
         fastq::create_reader(&fq, threads, max_memory).expect("Failed to create reader");
-    let writer = fastq::create_writer(&out_fq, &output_compression, threads, force)
+
+    let mut writer = fastq::FastqWriter::new(&out_fq, &output_compression, threads, force)
         .expect("Failed to create writer");
 
     logger.message("Parsing barcode patterns...");
@@ -107,12 +108,11 @@ fn process_single_end_fastq(
                         skip_trimming,
                         rc_barcodes,
                     );
-                    barcodes_parser?.extract_barcodes(record)
+                    barcodes_parser?.parse_barcodes(record)
                 })
                 .collect();
 
-            let writer = writer.lock().unwrap();
-            fastq::save_single_end_reads_to_file(result_reads, writer);
+            writer.write_all(result_reads).expect("Failed to write processed reads");
 
             logger.increment_progress(records.len());
         }
@@ -141,7 +141,7 @@ fn process_pair_end_fastq(
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
 
-    let lines_number = fastq::get_reads_count(&fq1, threads, max_memory);
+    let lines_number = fastq::count_reads(&fq1, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
     let mut reader1 = fastq::create_reader(&fq1, threads, max_memory)
@@ -149,10 +149,8 @@ fn process_pair_end_fastq(
     let mut reader2 = fastq::create_reader(&fq2, threads, max_memory)
         .expect("Failed to read input reverse reads");
 
-    let writer1 = fastq::create_writer(&out_fq1, &output_compression, threads, force)
-        .expect("Failed to write output forward reads");
-    let writer2 = fastq::create_writer(&out_fq2, &output_compression, threads, force)
-        .expect("Failed to write output reverse reads");
+    let mut writer = fastq::FastqsWriter::new(&out_fq1, &out_fq2, &output_compression, threads, force)
+        .expect("Failed to create writer");
 
     logger.message("Parsing barcode patterns...");
 
@@ -195,10 +193,10 @@ fn process_pair_end_fastq(
                     let new_records = (
                         barcode1_parser
                             .as_ref()
-                            .and_then(|parser| parser.extract_barcodes(record1)),
+                            .and_then(|parser| parser.parse_barcodes(record1)),
                         barcode2_parser
                             .as_ref()
-                            .and_then(|parser| parser.extract_barcodes(record2)),
+                            .and_then(|parser| parser.parse_barcodes(record2)),
                     );
 
                     match new_records {
@@ -210,9 +208,7 @@ fn process_pair_end_fastq(
                 })
                 .collect();
 
-            let writer1 = writer1.lock().unwrap();
-            let writer2 = writer2.lock().unwrap();
-            fastq::save_pair_end_reads_to_file(result_read_pairs, writer1, writer2);
+            writer.write_all(result_read_pairs).expect("Failed to write processed reads");
 
             logger.increment_progress(records1.len());
         }

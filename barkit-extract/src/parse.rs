@@ -55,7 +55,7 @@ impl BarcodeParser {
         })
     }
 
-    pub fn extract_barcodes(&self, record: &RefRecord) -> Option<OwnedRecord> {
+    pub fn parse_barcodes(&self, record: &RefRecord) -> Option<OwnedRecord> {
         let read_captures = self.barcode_regex.get_captures(record.seq());
         let read_seq_rc: Vec<u8>;
         let read_captures = if read_captures.is_err() && self.rc_barcodes {
@@ -64,20 +64,20 @@ impl BarcodeParser {
         } else {
             read_captures
         };
-        self.create_new_read(read_captures.map(Some), record)
+        self.create_read(read_captures.map(Some), record)
     }
 
-    fn create_new_read(
+    fn create_read(
         &self,
         read_captures: Result<Option<Captures>, Error>,
         record: &RefRecord,
     ) -> Option<seq_io::fastq::OwnedRecord> {
         match (read_captures, self.skip_trimming) {
             (Ok(Some(captures)), true) => {
-                Some(self.get_read_with_new_header(&captures, record).ok()?)
+                Some(self.create_read_with_new_header(&captures, record).ok()?)
             }
             (Ok(Some(captures)), false) => {
-                let new_read = self.get_read_with_new_header(&captures, record).ok()?;
+                let new_read = self.create_read_with_new_header(&captures, record).ok()?;
                 Some(trim_adapters(captures, &new_read).ok()?)
             }
             (Ok(None), _) => Some(OwnedRecord {
@@ -89,7 +89,7 @@ impl BarcodeParser {
         }
     }
 
-    fn get_read_with_new_header(
+    fn create_read_with_new_header(
         &self,
         captures: &Captures,
         record: &RefRecord,
