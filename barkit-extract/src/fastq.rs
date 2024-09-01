@@ -12,7 +12,7 @@ use gzp::{
     par::decompress::ParDecompressBuilder,
 };
 use lz4::{Decoder, EncoderBuilder};
-use seq_io::fastq::{OwnedRecord, Reader};
+use seq_io::fastq::{OwnedRecord, Reader, RecordSet};
 
 use crate::error::{self, Error};
 
@@ -99,63 +99,111 @@ impl CompressionType {
     }
 }
 
-/// Counts reads in the FASTQ
-pub fn count_reads(
-    file: &str,
-    threads_num: usize,
-    buffer_size_in_megabytes: Option<usize>,
-) -> usize {
-    create_reader(file, threads_num, buffer_size_in_megabytes)
-        .unwrap_or_else(|_| panic!("couldn't open file {}", file))
-        .into_records()
-        .count()
+type ReaderType = seq_io::fastq::Reader<Box<dyn BufRead>>;
+
+pub struct FastqReader {
+    reader: ReaderType
 }
 
-/// Creates FASTQ reader instance
-pub fn create_reader(
-    fastq_path: &str,
-    threads_num: usize,
-    buffer_size_in_megabytes: Option<usize>,
-) -> Result<seq_io::fastq::Reader<Box<dyn BufRead>>, error::Error> {
-    let path = Path::new(fastq_path);
-    let file = File::open(path).unwrap_or_else(|_| panic!("couldn't open file {}", fastq_path));
+impl FastqReader {
+    pub fn new(
+        fq: &str,
+        threads: usize,
+        max_memory: Option<usize>
+    ) -> Result<Self, error::Error> {
+        let path = Path::new(fq);
+        let file = File::open(path).unwrap_or_else(|_| panic!("couldn't open file {}", fq));
 
-    let buffer_size_in_bytes = get_reader_buffer_size(&file, buffer_size_in_megabytes)?;
+        let buffer_size_in_bytes = Self::calculate_buffer_size(&file, max_memory)?;
 
-    let decoder: Box<dyn Read> = match CompressionType::detect(path) {
-        CompressionType::Gzip | CompressionType::Mgzip => Box::new(MultiGzDecoder::new(file)),
-        CompressionType::Lz4 => Box::new(Decoder::new(file)?),
-        CompressionType::Bgzf => Box::new(
-            ParDecompressBuilder::<Bgzf>::new()
-                .num_threads(threads_num)
-                .expect("Provided unexpected number of threads")
-                .from_reader(BufReader::with_capacity(buffer_size_in_bytes, file)),
-        ),
-        CompressionType::No => Box::new(file),
-    };
+        let decoder: Box<dyn Read> = match CompressionType::detect(path) {
+            CompressionType::Gzip | CompressionType::Mgzip => Box::new(MultiGzDecoder::new(file)),
+            CompressionType::Lz4 => Box::new(Decoder::new(file)?),
+            CompressionType::Bgzf => Box::new(
+                ParDecompressBuilder::<Bgzf>::new()
+                    .num_threads(threads)
+                    .expect("Provided unexpected number of threads")
+                    .from_reader(BufReader::with_capacity(buffer_size_in_bytes, file)),
+            ),
+            CompressionType::No => Box::new(file),
+        };
 
-    Ok(Reader::new(Box::new(BufReader::with_capacity(
-        buffer_size_in_bytes,
-        decoder,
-    ))))
-}
-
-/// Caclulates optimal buffer size based on FASTQ file size and max memory consumption
-fn get_reader_buffer_size(
-    fastq_file: &File,
-    max_memory: Option<usize>,
-) -> Result<usize, error::Error> {
-    let fastq_file_size_bytes = fastq_file.metadata()?.len() as usize;
-    match max_memory {
-        Some(buffer_size) => {
-            let buffer_size_bytes = buffer_size * 1024 * 1024;
-            if buffer_size_bytes > fastq_file_size_bytes {
-                Ok(fastq_file_size_bytes)
-            } else {
-                Ok(buffer_size_bytes)
+        Ok(
+            FastqReader {
+                reader: Reader::new(Box::new(BufReader::with_capacity(
+                    buffer_size_in_bytes,
+                    decoder,
+                )))
             }
+        )
+    }
+
+    /// Caclulates optimal buffer size based on FASTQ file size and max memory consumption
+    fn calculate_buffer_size(
+        fastq_file: &File,
+        max_memory: Option<usize>,
+    ) -> Result<usize, error::Error> {
+        let fastq_file_size_bytes = fastq_file.metadata()?.len() as usize;
+        match max_memory {
+            Some(buffer_size) => {
+                let buffer_size_bytes = buffer_size * 1024 * 1024;
+                if buffer_size_bytes > fastq_file_size_bytes {
+                    Ok(fastq_file_size_bytes)
+                } else {
+                    Ok(buffer_size_bytes)
+                }
+            }
+            None => Ok(fastq_file_size_bytes),
         }
-        None => Ok(fastq_file_size_bytes),
+    }
+
+    /// Counts reads in the FASTQ
+    pub fn count_reads(
+        file: &str,
+        threads_num: usize,
+        buffer_size_in_megabytes: Option<usize>,
+    ) -> usize {
+        Self::new(file, threads_num, buffer_size_in_megabytes)
+            .unwrap_or_else(|_| panic!("couldn't open file {}", file))
+            .reader
+                .into_records()
+                .count()
+    }
+
+    pub fn read_record_set(&mut self) -> Option<RecordSet> {
+        let mut record_set = RecordSet::default();
+
+        match self.reader.read_record_set(&mut record_set) {
+            Some(_) => Some(record_set),
+            None => None
+        }
+    }
+}
+
+pub struct FastqsReader {
+    reader1: FastqReader,
+    reader2: FastqReader,
+}
+
+impl FastqsReader {
+    pub fn new(
+        fq1: &str,
+        fq2: &str,
+        threads: usize,
+        max_memory: Option<usize>
+    ) -> Result<Self, error::Error> {
+        Ok(
+            Self {
+                reader1: FastqReader::new(fq1, threads, max_memory)?,
+                reader2: FastqReader::new(fq2, threads, max_memory)?,
+            }
+        )
+    }
+
+    pub fn read_record_sets(&mut self) -> Result<(Option<RecordSet>, Option<RecordSet>), Error> {
+        Ok(
+            (self.reader1.read_record_set(), self.reader2.read_record_set()),
+        )
     }
 }
 

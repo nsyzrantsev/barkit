@@ -75,11 +75,11 @@ fn process_single_end_fastq(
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
 
-    let lines_number = fastq::count_reads(&fq, threads, max_memory);
+    let lines_number = fastq::FastqReader::count_reads(&fq, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
-    let mut reader =
-        fastq::create_reader(&fq, threads, max_memory).expect("Failed to create reader");
+    let mut reader = fastq::FastqReader::new(&fq, threads, max_memory)
+        .expect("Failed to create reader");
 
     let mut writer = fastq::FastqWriter::new(&out_fq, &output_compression, threads, force)
         .expect("Failed to create writer");
@@ -92,29 +92,38 @@ fn process_single_end_fastq(
     logger.message("Extracting barcodes from reads...");
 
     loop {
-        let mut record_set = seq_io::fastq::RecordSet::default();
+        let record_set = reader.read_record_set();
 
-        let filled_set = reader.read_record_set(&mut record_set);
-
-        if filled_set.is_none() {
-            break;
-        } else {
-            let records = record_set.into_iter().collect::<Vec<_>>();
+        if let Some(records) = record_set {
+            // Flatten the record set into individual records
+            let records = records.into_iter().collect::<Vec<_>>();
+    
+            // Parallel processing of individual records to extract parsed reads
             let result_reads: Vec<_> = records
                 .par_iter()
                 .filter_map(|record| {
+                    // Create a new BarcodeParser with the appropriate configuration
                     let barcodes_parser = parse::BarcodeParser::new(
                         Some(barcode_re.clone()),
                         skip_trimming,
                         rc_barcodes,
                     );
+    
+                    // Parse the barcodes from the RefRecord
+                    // `record` needs to be passed as a `&RefRecord`
                     barcodes_parser?.parse_barcodes(record)
                 })
                 .collect();
-
-            writer.write_all(result_reads).expect("Failed to write processed reads");
-
+    
+            // Write the processed reads to the writer
+            writer
+                .write_all(result_reads)
+                .expect("Failed to write processed reads");
+    
+            // Increment the progress tracker based on the number of records processed
             logger.increment_progress(records.len());
+        } else {
+            break;
         }
     }
 
@@ -141,13 +150,11 @@ fn process_pair_end_fastq(
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
 
-    let lines_number = fastq::count_reads(&fq1, threads, max_memory);
+    let lines_number = fastq::FastqReader::count_reads(&fq1, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
-    let mut reader1 = fastq::create_reader(&fq1, threads, max_memory)
+    let mut reader = fastq::FastqsReader::new(&fq1, &fq2, threads, max_memory)
         .expect("Failed to read input forward reads");
-    let mut reader2 = fastq::create_reader(&fq2, threads, max_memory)
-        .expect("Failed to read input reverse reads");
 
     let mut writer = fastq::FastqsWriter::new(&out_fq1, &out_fq2, &output_compression, threads, force)
         .expect("Failed to create writer");
@@ -169,17 +176,11 @@ fn process_pair_end_fastq(
     logger.message("Extracting barcodes from reads...");
 
     loop {
-        let mut record_set1 = seq_io::fastq::RecordSet::default();
-        let mut record_set2 = seq_io::fastq::RecordSet::default();
+        let record_sets = reader.read_record_sets();
 
-        let filled_set1 = reader1.read_record_set(&mut record_set1);
-        let filled_set2 = reader2.read_record_set(&mut record_set2);
-
-        if filled_set1.is_none() || filled_set2.is_none() {
-            break;
-        } else {
-            let records1 = record_set1.into_iter().collect::<Vec<_>>();
-            let records2 = record_set2.into_iter().collect::<Vec<_>>();
+        if let Ok((Some(records1), Some(records2))) = record_sets {
+            let records1 = records1.into_iter().collect::<Vec<_>>();
+            let records2 = records2.into_iter().collect::<Vec<_>>();
 
             let result_read_pairs: Vec<_> = records1
                 .par_iter()
@@ -211,6 +212,8 @@ fn process_pair_end_fastq(
             writer.write_all(result_read_pairs).expect("Failed to write processed reads");
 
             logger.increment_progress(records1.len());
+        } else {
+            break;
         }
     }
     logger.final_message();
