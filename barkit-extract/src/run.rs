@@ -1,4 +1,5 @@
 use rayon::prelude::*;
+use seq_io::fastq::{OwnedRecord, RefRecord};
 
 use crate::fastq::{self, CompressionType};
 use crate::logger;
@@ -58,6 +59,25 @@ pub fn run(
     }
 }
 
+/// Parses barcodes from single-end reads in parallel
+fn parse_se_reads(records: &Vec<RefRecord>, barcode: &BarcodeRegex, skip_trimming: bool, rc_barcodes: bool) -> Vec<OwnedRecord> {
+    records
+        .par_iter()
+        .filter_map(|record| {
+            // Create a new BarcodeParser with the appropriate configuration
+            let barcodes_parser = parse::BarcodeParser::new(
+                Some(barcode),
+                skip_trimming,
+                rc_barcodes,
+            );
+
+            // Parse the barcodes from the RefRecord
+            // `record` needs to be passed as a `&RefRecord`
+            barcodes_parser?.parse_barcodes(record)
+        })
+        .collect()
+}
+
 #[allow(clippy::too_many_arguments)]
 fn process_single_end_fastq(
     fq: String,
@@ -86,7 +106,7 @@ fn process_single_end_fastq(
 
     logger.message("Parsing barcode patterns...");
 
-    let barcode_re = BarcodeRegex::new(&pattern, max_error)
+    let barcode = BarcodeRegex::new(&pattern, max_error)
         .expect("Failed to create barcode regex with the provided pattern and max error.");
 
     logger.message("Extracting barcodes from reads...");
@@ -99,23 +119,9 @@ fn process_single_end_fastq(
             let records = records.into_iter().collect::<Vec<_>>();
     
             // Parallel processing of individual records to extract parsed reads
-            let result_reads: Vec<_> = records
-                .par_iter()
-                .filter_map(|record| {
-                    // Create a new BarcodeParser with the appropriate configuration
-                    let barcodes_parser = parse::BarcodeParser::new(
-                        Some(barcode_re.clone()),
-                        skip_trimming,
-                        rc_barcodes,
-                    );
+            let result_reads: Vec<_> = parse_se_reads(&records, &barcode, skip_trimming, rc_barcodes);
     
-                    // Parse the barcodes from the RefRecord
-                    // `record` needs to be passed as a `&RefRecord`
-                    barcodes_parser?.parse_barcodes(record)
-                })
-                .collect();
-    
-            // Write the processed reads to the writer
+            // Write the processed reads to the output FASTQ
             writer
                 .write_all(result_reads)
                 .expect("Failed to write processed reads");
@@ -128,6 +134,55 @@ fn process_single_end_fastq(
     }
 
     logger.final_message();
+}
+
+/// Returns final reads, that will be saved to the output file
+fn get_new_reads(
+    new_records: (Option<OwnedRecord>, Option<OwnedRecord>),
+    record1: &RefRecord,
+    record2: &RefRecord
+) -> Option<(OwnedRecord, OwnedRecord)> {
+    match new_records {
+        (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
+        (None, Some(new_record2)) => Some((record1.to_owned_record(), new_record2)),
+        (Some(new_record1), None) => Some((new_record1, record2.to_owned_record())),
+        (None, None) => None,
+    }
+}
+
+/// Parses barcodes from paired-end reads in parallel
+fn parse_pe_reads(
+    records1: &Vec<RefRecord>,
+    records2: &Vec<RefRecord>,
+    barcode1: &Option<BarcodeRegex>,
+    barcode2: &Option<BarcodeRegex>,
+    skip_trimming: bool,
+    rc_barcodes: bool
+) -> Vec<(OwnedRecord, OwnedRecord)> {
+    records1
+        .par_iter()
+        .zip(records2.par_iter())
+        .filter_map(|(record1, record2)| {
+            // Create a new `BarcodeParser` with the appropriate configuration for forward and reverse reads
+            let barcode1_parser =
+                parse::BarcodeParser::new(barcode1.as_ref(), skip_trimming, rc_barcodes);
+            let barcode2_parser =
+                parse::BarcodeParser::new(barcode2.as_ref(), skip_trimming, rc_barcodes);
+
+            // Parse the barcodes from the RefRecord
+            // `record` needs to be passed as a `&RefRecord`
+            let new_reads = (
+                barcode1_parser
+                    .as_ref()
+                    .and_then(|parser| parser.parse_barcodes(record1)),
+                barcode2_parser
+                    .as_ref()
+                    .and_then(|parser| parser.parse_barcodes(record2)),
+            );
+
+            get_new_reads(new_reads, record1, record2)
+        })
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -182,34 +237,16 @@ fn process_pair_end_fastq(
             let records1 = records1.into_iter().collect::<Vec<_>>();
             let records2 = records2.into_iter().collect::<Vec<_>>();
 
-            let result_read_pairs: Vec<_> = records1
-                .par_iter()
-                .zip(records2.par_iter())
-                .filter_map(|(record1, record2)| {
-                    let barcode1_parser =
-                        parse::BarcodeParser::new(barcode1.clone(), skip_trimming, rc_barcodes);
-                    let barcode2_parser =
-                        parse::BarcodeParser::new(barcode2.clone(), skip_trimming, rc_barcodes);
+            let new_reads = parse_pe_reads(
+                &records1,
+                &records2,
+                &barcode1,
+                &barcode2,
+                skip_trimming,
+                rc_barcodes
+            );
 
-                    let new_records = (
-                        barcode1_parser
-                            .as_ref()
-                            .and_then(|parser| parser.parse_barcodes(record1)),
-                        barcode2_parser
-                            .as_ref()
-                            .and_then(|parser| parser.parse_barcodes(record2)),
-                    );
-
-                    match new_records {
-                        (Some(new_record1), Some(new_record2)) => Some((new_record1, new_record2)),
-                        (None, Some(new_record2)) => Some((record1.to_owned_record(), new_record2)),
-                        (Some(new_record1), None) => Some((new_record1, record2.to_owned_record())),
-                        (None, None) => None,
-                    }
-                })
-                .collect();
-
-            writer.write_all(result_read_pairs).expect("Failed to write processed reads");
+            writer.write_all(new_reads).expect("Failed to write processed reads");
 
             logger.increment_progress(records1.len());
         } else {

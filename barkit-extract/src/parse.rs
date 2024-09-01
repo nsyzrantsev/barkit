@@ -44,12 +44,12 @@ pub struct BarcodeParser {
 
 impl BarcodeParser {
     pub fn new(
-        barcode_regex: Option<BarcodeRegex>,
+        barcode_regex: Option<&BarcodeRegex>,
         skip_trimming: bool,
         rc_barcodes: bool,
     ) -> Option<Self> {
-        barcode_regex.map(|regex| BarcodeParser {
-            barcode_regex: regex,
+        Some(BarcodeParser {
+            barcode_regex: barcode_regex?.to_owned(),
             skip_trimming,
             rc_barcodes,
         })

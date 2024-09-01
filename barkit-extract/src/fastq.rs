@@ -37,11 +37,11 @@ pub enum CompressionType {
 
 impl CompressionType {
     /// Returns magic bytes for specified compression type
-    /// 
+    ///
     /// Example:
-    /// 
+    ///
     /// use barkit_extract::fastq::CompressionType;
-    /// 
+    ///
     /// assert_eq!(CompressionType::Gzip.magic_bytes(), &[0x1f, 0x8b]);
     fn magic_bytes(&self) -> &'static [u8] {
         match self {
@@ -54,11 +54,11 @@ impl CompressionType {
     }
 
     /// Selects `CompressionType` by provided values
-    /// 
+    ///
     /// Example:
-    /// 
+    ///
     /// use barkit_extract::fastq::CompressionType;
-    /// 
+    ///
     /// assert_eq!(
     ///     CompressionType::select(
     ///         true,
@@ -102,15 +102,11 @@ impl CompressionType {
 type ReaderType = seq_io::fastq::Reader<Box<dyn BufRead>>;
 
 pub struct FastqReader {
-    reader: ReaderType
+    reader: ReaderType,
 }
 
 impl FastqReader {
-    pub fn new(
-        fq: &str,
-        threads: usize,
-        max_memory: Option<usize>
-    ) -> Result<Self, error::Error> {
+    pub fn new(fq: &str, threads: usize, max_memory: Option<usize>) -> Result<Self, error::Error> {
         let path = Path::new(fq);
         let file = File::open(path).unwrap_or_else(|_| panic!("couldn't open file {}", fq));
 
@@ -128,14 +124,12 @@ impl FastqReader {
             CompressionType::No => Box::new(file),
         };
 
-        Ok(
-            FastqReader {
-                reader: Reader::new(Box::new(BufReader::with_capacity(
-                    buffer_size_in_bytes,
-                    decoder,
-                )))
-            }
-        )
+        Ok(FastqReader {
+            reader: Reader::new(Box::new(BufReader::with_capacity(
+                buffer_size_in_bytes,
+                decoder,
+            )))
+        })
     }
 
     /// Caclulates optimal buffer size based on FASTQ file size and max memory consumption
@@ -173,10 +167,7 @@ impl FastqReader {
     pub fn read_record_set(&mut self) -> Option<RecordSet> {
         let mut record_set = RecordSet::default();
 
-        match self.reader.read_record_set(&mut record_set) {
-            Some(_) => Some(record_set),
-            None => None
-        }
+        self.reader.read_record_set(&mut record_set).map(|_| record_set)
     }
 }
 
