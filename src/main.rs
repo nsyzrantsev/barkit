@@ -14,10 +14,12 @@ fn main() {
             quiet,
             force,
         } => {
-            let output_compression =
-                barkit_extract::fastq::CompressionType::select(
-                    &compression.gz, &compression.bgz, &compression.mgz, &compression.lz4,
-                );
+            let output_compression = barkit_extract::fastq::CompressionType::select(
+                &compression.gz,
+                &compression.bgz,
+                &compression.mgz,
+                &compression.lz4,
+            );
             barkit_extract::run::run(
                 input_fastqs.fq1.to_string(),
                 input_fastqs.fq2.clone(),

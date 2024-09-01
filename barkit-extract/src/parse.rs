@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use crate::pattern::BarcodeRegex;
 use regex::bytes::Captures;
 
@@ -30,8 +32,13 @@ const TRANSLATION_TABLE: [u8; 256] = {
 };
 
 pub struct BarcodeParser {
+    /// Prepared regex pattern to parse barcodes
     barcode_regex: BarcodeRegex,
+
+    /// If `true`, all captured patterns will not be trimmed
     skip_trimming: bool,
+
+    /// If `true`, the barcode pattern will also be matched in the reverse complement sequence.
     rc_barcodes: bool,
 }
 

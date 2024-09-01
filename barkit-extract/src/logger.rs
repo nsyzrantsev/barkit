@@ -4,7 +4,8 @@ use console::{style, Emoji};
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 
 pub static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
-static PROGRESS_BAR_TEMPLATE: &str = "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {per_sec} ({eta})";
+static PROGRESS_BAR_TEMPLATE: &str =
+    "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {per_sec} ({eta})";
 
 pub struct Logger {
     /// Index of the current step
@@ -18,7 +19,7 @@ pub struct Logger {
 
     /// Start time of execution
     execution_start: Instant,
-    
+
     /// Progress bar
     progress_bar: Option<ProgressBar>,
 }
@@ -30,7 +31,7 @@ impl Logger {
     ///
     /// ```
     /// use barkit_extract::logger::Logger;
-    /// 
+    ///
     /// let logger = Logger::new(3, false);
     /// ```
     pub fn new(total: usize, quiet: bool) -> Self {
@@ -39,7 +40,7 @@ impl Logger {
             total,
             quiet,
             execution_start: Instant::now(),
-            progress_bar: None
+            progress_bar: None,
         }
     }
 
@@ -49,12 +50,12 @@ impl Logger {
     ///
     /// ```
     /// use barkit_extract::logger::Logger;
-    /// 
+    ///
     /// let mut logger = Logger::new(2, false);
-    /// 
+    ///
     /// logger.message("first logging message");
     /// // Output: "[1/2] first logging message"
-    /// 
+    ///
     /// logger.message("second logging message");
     /// // Output: "[2/2] second logging message"
     ///
@@ -65,7 +66,13 @@ impl Logger {
         if self.current < self.total {
             self.current += 1;
             if !self.quiet {
-                println!("{} {}", style(format!("[{}/{}]", self.current, self.total)).bold().dim(), text);
+                println!(
+                    "{} {}",
+                    style(format!("[{}/{}]", self.current, self.total))
+                        .bold()
+                        .dim(),
+                    text
+                );
             }
         } else {
             // Optionally handle the case where `current` exceeds `total`

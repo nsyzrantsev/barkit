@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use std::{fmt, mem::size_of};
 
 use fancy_regex::Regex as FancyRegex;
@@ -11,7 +13,7 @@ const ADAPTER_PATTERN_REGEX: &str = r"(?<!\[)\b[atgcryswkmbdhvn]+\b(?!\])";
 pub struct BarcodePattern {
     adapter_pattern: FancyRegex,
     barcode_pattern: String,
-    max_error: usize
+    max_error: usize,
 }
 
 impl BarcodePattern {
@@ -19,7 +21,7 @@ impl BarcodePattern {
         Ok(Self {
             adapter_pattern: FancyRegex::new(ADAPTER_PATTERN_REGEX)?,
             barcode_pattern: pattern.to_owned(),
-            max_error: *max_error
+            max_error: *max_error,
         })
     }
 
@@ -29,9 +31,9 @@ impl BarcodePattern {
     ///
     /// ```
     /// use barkit_extract::pattern::BarcodePattern;
-    /// 
+    ///
     /// let barcode_pattern = BarcodePattern::new("^atgc(?<UMI>[ATGCN]{12})", &1).unwrap();
-    /// 
+    ///
     /// let sequences_with_errors = barcode_pattern.get_sequence_with_errors("ATGC");
     /// assert_eq!(vec!["ATG.", "AT.C", "A.GC", ".TGC"], sequences_with_errors);
     /// ```
@@ -39,26 +41,26 @@ impl BarcodePattern {
         if self.max_error == 0 {
             return vec![sequence.to_string().to_ascii_uppercase()];
         }
-    
+
         if sequence.is_empty() {
             return Vec::new();
         }
-    
+
         if self.max_error >= sequence.len() {
             return vec![FUZZY_CHARACTER.repeat(sequence.len())];
         }
-    
+
         let num_chars = sequence.chars().count();
         assert!(num_chars <= usize::BITS as usize * 8, "too many characters");
-    
+
         let max_permutation_mask = usize::MAX
             .checked_shr(size_of::<usize>() as u32 * 8 - num_chars as u32)
             .unwrap();
-    
+
         let mut cases = Vec::new();
-    
+
         let upper: Vec<char> = sequence.chars().map(|c| c.to_ascii_uppercase()).collect();
-    
+
         for permutation_mask in 0..=max_permutation_mask {
             if permutation_mask.count_ones() as usize != num_chars - self.max_error {
                 continue;
@@ -73,7 +75,6 @@ impl BarcodePattern {
             }
             cases.push(s);
         }
-    
         cases
     }
 
@@ -83,9 +84,9 @@ impl BarcodePattern {
     ///
     /// ```
     /// use barkit_extract::pattern::BarcodePattern;
-    /// 
+    ///
     /// let barcode_pattern = BarcodePattern::new("^atgc(?<UMI>[ATGCN]{12})", &1).unwrap();
-    /// 
+    ///
     /// let pattern_with_pcr_errors = barcode_pattern.get_pattern_with_errors().unwrap();
     /// assert_eq!("^(ATG.|AT.C|A.GC|.TGC)(?<UMI>[ATGCN]{12})", pattern_with_pcr_errors);
     /// ```
@@ -108,8 +109,7 @@ impl BarcodePattern {
     }
 }
 
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BarcodeType {
     /// Moleculare barcode (UMI)
     Umi,
@@ -125,11 +125,11 @@ impl BarcodeType {
     /// Parses type of barcode
     ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use barkit_extract::pattern::BarcodeType;
     /// use barkit_extract::error::Error::UnexpectedCaptureGroupName;
-    /// 
+    ///
     /// assert_eq!(BarcodeType::Umi, BarcodeType::parse_type("UMI").unwrap());
     /// assert_eq!(BarcodeType::Sample, BarcodeType::parse_type("SB").unwrap());
     /// assert_eq!(BarcodeType::Cell, BarcodeType::parse_type("CB").unwrap());
@@ -146,14 +146,17 @@ impl BarcodeType {
 
 impl fmt::Display for BarcodeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            BarcodeType::Umi => "UMI",
-            BarcodeType::Sample => "SB",
-            BarcodeType::Cell => "CB",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                BarcodeType::Umi => "UMI",
+                BarcodeType::Sample => "SB",
+                BarcodeType::Cell => "CB",
+            }
+        )
     }
 }
-
 
 #[derive(Clone)]
 pub struct BarcodeRegex {
@@ -166,11 +169,11 @@ pub struct BarcodeRegex {
 
 impl BarcodeRegex {
     /// Creates `BarcodeRegex` instance
-    /// 
+    ///
     /// Example
     /// ```
     /// use barkit_extract::pattern::BarcodeRegex;
-    /// 
+    ///
     /// let barcode_regex = BarcodeRegex::new("^atgc(?<UMI>[ATGCN]{6})", 1);
     /// ```
     pub fn new(pattern: &str, max_error: usize) -> Result<Self, Error> {
@@ -184,7 +187,7 @@ impl BarcodeRegex {
         })
     }
 
-    /// Parses capture groups from regex pattern 
+    /// Parses capture groups from regex pattern
     fn parse_capture_groups(regex: &Regex) -> Result<Vec<BarcodeType>, Error> {
         let mut capture_groups = Vec::<BarcodeType>::new();
         for capture_group in regex
@@ -202,13 +205,13 @@ impl BarcodeRegex {
     }
 
     /// Captures barcodes in read sequence
-    /// 
+    ///
     /// Example
     /// ```
     /// use barkit_extract::pattern::BarcodeRegex;
-    /// 
+    ///
     /// let barcode_regex = BarcodeRegex::new("^atgc(?<UMI>[ATGCN]{6})", 1).unwrap();
-    /// 
+    ///
     /// assert_eq!(
     ///     b"NNNNNN",
     ///     barcode_regex
@@ -231,7 +234,6 @@ impl BarcodeRegex {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
@@ -251,10 +253,7 @@ mod tests {
         #[case] max_error: usize,
     ) {
         let barcode_pattern = pattern::BarcodePattern::new("", &max_error).unwrap();
-        assert_eq!(
-            expected,
-            barcode_pattern.get_sequence_with_errors(text)
-        );
+        assert_eq!(expected, barcode_pattern.get_sequence_with_errors(text));
     }
 
     #[rstest]

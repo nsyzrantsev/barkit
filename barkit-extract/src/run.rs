@@ -1,9 +1,9 @@
 use rayon::prelude::*;
 
-use crate::parse;
-use crate::pattern::BarcodeRegex;
 use crate::fastq::{self, CompressionType};
 use crate::logger;
+use crate::parse;
+use crate::pattern::BarcodeRegex;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -74,7 +74,7 @@ fn process_single_end_fastq(
 ) {
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
-    
+
     let lines_number = fastq::get_reads_count(&fq, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
@@ -140,7 +140,7 @@ fn process_pair_end_fastq(
 ) {
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
-    
+
     let lines_number = fastq::get_reads_count(&fq1, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
