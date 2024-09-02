@@ -1,6 +1,6 @@
 [package]
 name = "barkit-extract"
-version = "0.1.0" # managed by release.sh
+version = "0.1.1" # managed by release.sh
 edition = "2021"
 authors = ["Nikita Syzrantsev syzrantsev.n@yandex.ru"]
 description = "Tool for extracting barcode nucleotide sequence according to a specified regex pattern"
