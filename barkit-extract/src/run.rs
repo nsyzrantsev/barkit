@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use seq_io::fastq::{OwnedRecord, RefRecord};
 
-use crate::fastq::{self, CompressionType, FastqReader, FastqWriter, FastqsReader, FastqsWriter};
+use crate::fastq::{CompressionType, FastqReader, FastqWriter, FastqsReader, FastqsWriter};
 use crate::logger;
 use crate::parse::{self, BarcodeParser};
 use crate::pattern::BarcodeRegex;
@@ -205,7 +205,7 @@ fn process_pair_end_fastq(
     let mut logger = logger::Logger::new(3, quiet);
     logger.message("Estimating reads count...");
 
-    let lines_number = fastq::FastqReader::count_reads(&fq1, threads, max_memory);
+    let lines_number = FastqReader::count_reads(&fq1, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
     let mut reader = FastqsReader::new(&fq1, &fq2, threads, max_memory)

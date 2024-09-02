@@ -12,7 +12,7 @@ use gzp::{
     par::decompress::ParDecompressBuilder,
 };
 use lz4::{Decoder, EncoderBuilder};
-use seq_io::fastq::{OwnedRecord, Reader, RecordSet};
+use seq_io::fastq::{self, OwnedRecord, Reader, RecordSet};
 
 use crate::error::{self, Error};
 
@@ -99,10 +99,9 @@ impl CompressionType {
     }
 }
 
-type ReaderType = seq_io::fastq::Reader<Box<dyn BufRead>>;
-
 pub struct FastqReader {
-    reader: ReaderType,
+    /// FASTQ reader
+    reader: fastq::Reader<Box<dyn BufRead>>,
 }
 
 impl FastqReader {
@@ -174,7 +173,10 @@ impl FastqReader {
 }
 
 pub struct FastqsReader {
+    /// Forward FASTQ reader
     reader1: FastqReader,
+
+    /// Reverse FASTQ reader
     reader2: FastqReader,
 }
 
@@ -199,10 +201,9 @@ impl FastqsReader {
     }
 }
 
-type WriterType = Rc<Mutex<BufWriter<Box<dyn std::io::Write>>>>;
-
 pub struct FastqWriter {
-    writer: WriterType,
+    /// FASTQ writer
+    writer: Rc<Mutex<BufWriter<Box<dyn std::io::Write>>>>,
 }
 
 impl FastqWriter {
@@ -274,7 +275,10 @@ impl FastqWriter {
 }
 
 pub struct FastqsWriter {
+    /// Forward FASTQ writer
     writer1: FastqWriter,
+
+    /// Reverse FASTQ writer
     writer2: FastqWriter,
 }
 
