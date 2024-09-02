@@ -7,12 +7,9 @@ fn main() {
         barkit::Commands::Extract {
             input_fastqs,
             output_fastqs,
-            resources,
             additional_params,
             patterns,
             compression,
-            quiet,
-            force,
         } => {
             let output_compression = barkit_extract::fastq::CompressionType::select(
                 &compression.gz,
@@ -27,14 +24,14 @@ fn main() {
                 patterns.pattern2.clone(),
                 output_fastqs.out_fq1.to_string(),
                 output_fastqs.out_fq2.clone(),
-                resources.max_memory,
-                resources.threads,
+                args.max_memory,
+                args.threads,
                 additional_params.rc_barcodes,
                 additional_params.skip_trimming,
                 additional_params.max_error,
                 output_compression,
-                *quiet,
-                *force,
+                args.quiet,
+                args.force,
             );
         }
     }

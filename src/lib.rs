@@ -5,11 +5,27 @@ use clap::{command, ArgAction, Parser, Subcommand};
 pub struct Args {
     #[command(subcommand)]
     pub command: Commands,
+
+    /// Max RAM usage in megabytes
+    #[arg(short = 'm', long)]
+    pub max_memory: Option<usize>,
+
+    /// The approximate number of threads to use.
+    #[arg(short = 't', long, default_value = "1", global = true)]
+    pub threads: usize,
+
+    /// Be quiet and do not show extra information
+    #[arg(long, action = ArgAction::SetTrue, global = true)]
+    pub quiet: bool,
+
+    /// Overwrite output files
+    #[arg(short = 'f', long, action = ArgAction::SetTrue, global = true)]
+    pub force: bool,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Tool for parsing barcodes from single-end or paired-end FASTQ files
+    /// Extract barcode nucleotide sequence according to a specified regex pattern
     #[clap(arg_required_else_help = true)]
     Extract {
         #[clap(flatten)]
@@ -22,21 +38,10 @@ pub enum Commands {
         patterns: PatternsGroup,
 
         #[clap(flatten)]
-        resources: ResourcesGroup,
-
-        #[clap(flatten)]
         compression: CompressionGroup,
 
         #[clap(flatten)]
         additional_params: AdditionalParamsGroup,
-
-        /// Be quiet and do not show extra information
-        #[arg(short = 'q', long, action = ArgAction::SetTrue)]
-        quiet: bool,
-
-        /// Overwrite output files
-        #[arg(short = 'f', long, action = ArgAction::SetTrue)]
-        force: bool,
     },
 }
 
@@ -72,17 +77,6 @@ pub struct PatternsGroup {
     /// Barcode pattern of reverse reads
     #[arg(short = 'P', long, requires = "fq2")]
     pub pattern2: Option<String>,
-}
-
-#[derive(Debug, clap::Args)]
-pub struct ResourcesGroup {
-    /// Max RAM usage in megabytes
-    #[arg(short = 'm', long)]
-    pub max_memory: Option<usize>,
-
-    /// The approximate number of threads to use.
-    #[arg(short = 't', long, default_value = "1")]
-    pub threads: usize,
 }
 
 #[derive(Debug, clap::Args)]

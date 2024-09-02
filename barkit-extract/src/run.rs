@@ -99,15 +99,23 @@ fn process_single_end_fastq(
     let lines_number = FastqReader::count_reads(&fq, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
-    let mut reader = FastqReader::new(&fq, threads, max_memory).expect("Failed to create reader");
+    let mut reader = FastqReader::new(&fq, threads, max_memory).unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    });
 
-    let mut writer = FastqWriter::new(&out_fq, &output_compression, threads, force)
-        .expect("Failed to create writer");
+    let mut writer =
+        FastqWriter::new(&out_fq, &output_compression, threads, force).unwrap_or_else(|e| {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        });
 
     logger.message("Parsing barcode patterns...");
 
-    let barcode = BarcodeRegex::new(&pattern, max_error)
-        .expect("Failed to create barcode regex with the provided pattern and max error.");
+    let barcode = BarcodeRegex::new(&pattern, max_error).unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    });
 
     logger.message("Extracting barcodes from reads...");
 
@@ -122,9 +130,10 @@ fn process_single_end_fastq(
             let result_reads = parse_se_reads(&records, &barcode, skip_trimming, rc_barcodes);
 
             // Write the processed reads to the output FASTQ
-            writer
-                .write_all(result_reads)
-                .expect("Failed to write processed reads");
+            writer.write_all(result_reads).unwrap_or_else(|e| {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            });
 
             // Increment the progress tracker based on the number of records processed
             logger.increment_progress(records.len());
@@ -208,24 +217,31 @@ fn process_pair_end_fastq(
     let lines_number = FastqReader::count_reads(&fq1, threads, max_memory);
     logger.set_progress_bar(lines_number);
 
-    let mut reader = FastqsReader::new(&fq1, &fq2, threads, max_memory)
-        .expect("Failed to read input forward reads");
+    let mut reader = FastqsReader::new(&fq1, &fq2, threads, max_memory).unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    });
 
     let mut writer = FastqsWriter::new(&out_fq1, &out_fq2, &output_compression, threads, force)
-        .expect("Failed to create writer");
+        .unwrap_or_else(|e| {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        });
 
     logger.message("Parsing barcode patterns...");
 
     let barcode1 = pattern1.as_ref().map(|pat| {
-        BarcodeRegex::new(pat, max_error).expect(
-            "Failed to create barcode regex for pattern1 with the provided pattern and max error",
-        )
+        BarcodeRegex::new(pat, max_error).unwrap_or_else(|e| {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        })
     });
 
     let barcode2 = pattern2.as_ref().map(|pat| {
-        BarcodeRegex::new(pat, max_error).expect(
-            "Failed to create barcode regex for pattern2 with the provided pattern and max error",
-        )
+        BarcodeRegex::new(pat, max_error).unwrap_or_else(|e| {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        })
     });
 
     logger.message("Extracting barcodes from reads...");
@@ -246,9 +262,10 @@ fn process_pair_end_fastq(
                 rc_barcodes,
             );
 
-            writer
-                .write_all(new_reads)
-                .expect("Failed to write processed reads");
+            writer.write_all(new_reads).unwrap_or_else(|e| {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            });
 
             logger.increment_progress(records1.len());
         } else {

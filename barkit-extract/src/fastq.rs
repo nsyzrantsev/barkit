@@ -219,10 +219,7 @@ impl FastqWriter {
         if path.exists() && !force {
             return Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
-                format!(
-                    "File {} already exists. Please, provide --force flag to overwrite it.",
-                    fq
-                ),
+                format!("{} is already existed, use --force to override", fq),
             )
             .into());
         }
