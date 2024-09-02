@@ -12,10 +12,14 @@ pub enum Error {
     BarcodeCaptureGroupNotFound(String),
     #[error("Provided unexpected barcode capture group {0}")]
     UnexpectedCaptureGroupName(String),
-    #[error("Failed to read a file: {0}")]
-    FileRead(#[from] std::io::Error),
+    #[error("I/O error: {0}")]
+    IO(#[from] std::io::Error),
     #[error("No match")]
     PatternNotMatched,
+    #[error("Fancy regex error: {0}")]
+    FancyRegex(#[from] fancy_regex::Error),
+    #[error("Failed to choose permutation mask")]
+    PermutationMaskSize,
 }
 
 impl Clone for Error {
@@ -30,8 +34,10 @@ impl Clone for Error {
             Error::UnexpectedCaptureGroupName(capture_group) => {
                 Error::UnexpectedCaptureGroupName(capture_group.clone())
             }
-            Error::FileRead(err) => Error::FileRead(err.kind().into()),
+            Error::IO(err) => Error::IO(err.kind().into()),
             Error::PatternNotMatched => Error::PatternNotMatched,
+            Error::FancyRegex(err) => Error::FancyRegex(err.clone()),
+            Error::PermutationMaskSize => Error::PermutationMaskSize,
         }
     }
 }

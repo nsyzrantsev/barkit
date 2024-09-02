@@ -1,8 +1,10 @@
-use crate::pattern;
-use regex::bytes::{Captures, Regex};
+#![allow(clippy::result_large_err)]
+
+use crate::pattern::BarcodeRegex;
+use regex::bytes::Captures;
 
 use seq_io::fastq::{OwnedRecord, Record, RefRecord};
-use std::{fmt, str};
+use std::str;
 
 use crate::error::Error;
 
@@ -29,96 +31,31 @@ const TRANSLATION_TABLE: [u8; 256] = {
     table
 };
 
-#[derive(Clone)]
-pub enum BarcodeType {
-    Umi,
-    Sample,
-    Cell,
-}
-
-impl fmt::Display for BarcodeType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let barcode_str = match self {
-            BarcodeType::Umi => "UMI",
-            BarcodeType::Sample => "SB",
-            BarcodeType::Cell => "CB",
-        };
-        write!(f, "{}", barcode_str)
-    }
-}
-
-impl BarcodeType {
-    fn get_barcode_type(name: &str) -> Result<Self, Error> {
-        match name {
-            "UMI" => Ok(BarcodeType::Umi),
-            "SB" => Ok(BarcodeType::Sample),
-            "CB" => Ok(BarcodeType::Cell),
-            _ => Err(Error::UnexpectedCaptureGroupName(name.to_owned())),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct BarcodeRegex {
-    regex: Regex,
-    barcode_types: Vec<BarcodeType>,
-}
-
-impl BarcodeRegex {
-    pub fn new(pattern: &str, max_error: usize) -> Result<Self, Error> {
-        let fuzzy_pattern = pattern::get_with_errors(pattern, &max_error);
-        let regex = Regex::new(&fuzzy_pattern)?;
-        let barcode_types = Self::parse_capture_groups(&regex)?;
-        Ok(Self {
-            regex,
-            barcode_types,
-        })
-    }
-
-    pub fn get_captures<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures, Error> {
-        match self.regex.captures(read_seq) {
-            Some(capture) => Ok(capture),
-            None => Err(Error::PatternNotMatched),
-        }
-    }
-
-    fn parse_capture_groups(regex: &Regex) -> Result<Vec<BarcodeType>, Error> {
-        let mut capture_groups = Vec::<BarcodeType>::new();
-        for capture_group in regex
-            .capture_names()
-            .collect::<Vec<_>>()
-            .into_iter()
-            .flatten()
-        {
-            capture_groups.push(BarcodeType::get_barcode_type(capture_group)?)
-        }
-        if capture_groups.is_empty() {
-            return Err(Error::BarcodeCaptureGroupNotFound(regex.to_string()));
-        }
-        Ok(capture_groups)
-    }
-}
-
 pub struct BarcodeParser {
+    /// Prepared regex pattern to parse barcodes
     barcode_regex: BarcodeRegex,
+
+    /// If `true`, all captured patterns will not be trimmed
     skip_trimming: bool,
+
+    /// If `true`, the barcode pattern will also be matched in the reverse complement sequence.
     rc_barcodes: bool,
 }
 
 impl BarcodeParser {
     pub fn new(
-        barcode_regex: Option<BarcodeRegex>,
+        barcode_regex: Option<&BarcodeRegex>,
         skip_trimming: bool,
         rc_barcodes: bool,
     ) -> Option<Self> {
-        barcode_regex.map(|regex| BarcodeParser {
-            barcode_regex: regex,
+        Some(BarcodeParser {
+            barcode_regex: barcode_regex?.to_owned(),
             skip_trimming,
             rc_barcodes,
         })
     }
 
-    pub fn extract_barcodes(&self, record: &RefRecord) -> Option<OwnedRecord> {
+    pub fn parse_barcodes(&self, record: &RefRecord) -> Option<OwnedRecord> {
         let read_captures = self.barcode_regex.get_captures(record.seq());
         let read_seq_rc: Vec<u8>;
         let read_captures = if read_captures.is_err() && self.rc_barcodes {
@@ -127,20 +64,20 @@ impl BarcodeParser {
         } else {
             read_captures
         };
-        self.create_new_read(read_captures.map(Some), record)
+        self.create_read(read_captures.map(Some), record)
     }
 
-    fn create_new_read(
+    fn create_read(
         &self,
         read_captures: Result<Option<Captures>, Error>,
         record: &RefRecord,
     ) -> Option<seq_io::fastq::OwnedRecord> {
         match (read_captures, self.skip_trimming) {
             (Ok(Some(captures)), true) => {
-                Some(self.get_read_with_new_header(&captures, record).ok()?)
+                Some(self.create_read_with_new_header(&captures, record).ok()?)
             }
             (Ok(Some(captures)), false) => {
-                let new_read = self.get_read_with_new_header(&captures, record).ok()?;
+                let new_read = self.create_read_with_new_header(&captures, record).ok()?;
                 Some(trim_adapters(captures, &new_read).ok()?)
             }
             (Ok(None), _) => Some(OwnedRecord {
@@ -152,7 +89,7 @@ impl BarcodeParser {
         }
     }
 
-    fn get_read_with_new_header(
+    fn create_read_with_new_header(
         &self,
         captures: &Captures,
         record: &RefRecord,
@@ -161,7 +98,7 @@ impl BarcodeParser {
         let seq = record.seq().to_vec();
         let qual = record.qual().to_vec();
 
-        for barcode in &self.barcode_regex.barcode_types {
+        for barcode in &self.barcode_regex.get_barcode_types() {
             let barcode_name = barcode.to_string();
             let (barcode_start, barcode_end) =
                 get_barcode_match_positions(&barcode_name, captures)?;
@@ -245,7 +182,7 @@ pub fn get_reverse_complement(sequence: &[u8]) -> Vec<u8> {
 mod tests {
     use rstest::rstest;
 
-    use crate::barcode::get_reverse_complement;
+    use crate::parse::get_reverse_complement;
 
     #[rstest]
     #[case(b"", b"")]
