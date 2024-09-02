@@ -222,7 +222,7 @@ impl BarcodeRegex {
     ///         .as_bytes()
     /// );
     /// ```
-    pub fn get_captures<'a>(&'a self, read_seq: &'a [u8]) -> Result<Captures, Error> {
+    pub fn get_captures<'a>(&self, read_seq: &'a [u8]) -> Result<Captures<'a>, Error> {
         match self.regex.captures(read_seq) {
             Some(capture) => Ok(capture),
             None => Err(Error::PatternNotMatched),
