@@ -160,7 +160,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p release/
-          cp {LICENSE,README.md,CHANGELOG.md} release/
+          cp {LICENSE-MIT,LICENSE-APACHE,README.md,CHANGELOG.md} release/
           for bin in 'barkit'; do
             if [ "${{ matrix.build.OS }}" = "windows-2022" ]; then
               bin="${bin}.exe"
