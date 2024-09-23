@@ -16,7 +16,7 @@ clap = { version = "4.5.18", features = ["derive", "env"] }
 flate2 = "1.0.33"
 regex = "1.10.6"
 seq_io = "0.3.2"
-thiserror = "1.0.63"
+thiserror = "1.0.64"
 rayon = "1.10.0"
 fancy-regex = "0.13.0"
 lz4 = "1.27.0"
