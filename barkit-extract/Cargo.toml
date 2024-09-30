@@ -25,4 +25,4 @@ indicatif = "0.17.8"
 console = "0.15.8"
 
 [dev-dependencies]
-rstest = "0.22.0"
+rstest = "0.23.0"
