@@ -16,7 +16,7 @@ keywords = ["bioinformatics", "sequencing", "barcodes"]
 members = ["barkit-extract"]
 
 [dependencies]
-clap = { version = "4.5.18", features = ["env", "derive"] }
+clap = { version = "4.5.19", features = ["env", "derive"] }
 barkit-extract = { version = "0.1.1", path = "barkit-extract" }
 
 [profile.dev]
