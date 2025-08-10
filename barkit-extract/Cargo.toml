@@ -15,7 +15,7 @@ rust-version = "1.80.0"
 clap = { version = "4.5.23", features = ["derive", "env"] }
 flate2 = "1.0.35"
 regex = "1.11.1"
-seq_io = "0.3.2"
+seq_io = "0.3.4"
 thiserror = "2.0.8"
 rayon = "1.10.0"
 fancy-regex = "0.14.0"
